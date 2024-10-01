@@ -88,7 +88,7 @@ void *clnt_connection(void *arg)
     /* mathod token separate */
     ret = strtok(reg_line, " ");
     strcpy(method, (ret != NULL) ? ret : "");
-
+재의 빛의 유무를 웹페이지로 표시한다.
     /* if post method send "ok", if not get method send "error"  */
     if(strcmp(method, "POST") == 0)
     {
