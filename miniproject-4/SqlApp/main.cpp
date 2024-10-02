@@ -11,7 +11,7 @@ static bool createConnection( )
     QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
     db.setDatabaseName("data.db");
     if (!db.open( )) return false;
-/*
+
     QSqlQuery query;
     query.exec("CREATE TABLE IF NOT EXISTS person(id INTEGER Primary Key, "
                      "firstname VARCHAR(20) NOT NULL, lastname VARCHAR(20));");
@@ -19,7 +19,7 @@ static bool createConnection( )
     query.exec("INSERT INTO person(firstname, lastname) VALUES('Soomi', 'Kim')");
     query.exec("INSERT INTO person(firstname, lastname) VALUES "
                      "('Hanmi', 'Lee'), ('YoungJin', 'Suh'), ('YoungHwa', 'Ryu');");
-*/
+
     return true;
 }
 
