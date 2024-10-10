@@ -7,7 +7,6 @@
 #include <netinet/in.h>
 #include <pthread.h>
 
-#define BUF_SIZE 100
 #define NAME_SIZE 20
 
 void *send_msg(void * arg);
@@ -15,7 +14,7 @@ void *recv_msg(void * arg);
 void error_handling(char *msg);
 
 char name[NAME_SIZE] = "[DEFAULT]";
-char msg[BUF_SIZE];
+char msg[BUFSIZ];
 
 int main(int argc, char *argv[])
 {
@@ -50,10 +49,10 @@ int main(int argc, char *argv[])
 void * send_msg(void * arg)
 {
 	int sock = *((int*)arg);
-	char name_msg[NAME_SIZE+BUF_SIZE];
+	char name_msg[NAME_SIZE+BUFSIZ];
 	while(1)
 	{
-		fgets(msg, BUF_SIZE, stdin);
+		fgets(msg, BUFSIZ, stdin);
 		if(!strcmp(msg, "q\n")||!strcmp(msg, "Q\n"))
 		{
 			close(sock);
@@ -67,11 +66,11 @@ void * send_msg(void * arg)
 void * recv_msg(void * arg)
 {
 	int sock = *((int*)arg);
-	char name_msg[NAME_SIZE+BUF_SIZE];
+	char name_msg[NAME_SIZE+BUFSIZ];
 	int str_len;
 	while(1)
 	{
-		str_len = read(sock, name_msg, NAME_SIZE+BUF_SIZE-1);
+		str_len = read(sock, name_msg, NAME_SIZE+BUFSIZ-1);
 		if(str_len ==-1)
 			return (void*)-1;
 		name_msg[str_len] =0;

@@ -4,7 +4,7 @@
 CC = gcc
 
 # Compiler flags
-CFLAGS = -Wall -g -lpthread
+CFLAGS = -Wall -g -pthread
 
 # Source files
 SRCS = main.c tcp_server.c video_capture.c
@@ -23,14 +23,12 @@ all: $(TARGET)
 
 # Rule to link object files into the final executable
 $(TARGET): $(OBJS)
-	$(CC) $(CFLASS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 # Rule to compile source files into object files
 %.o: %.c $(HDRS)
-	$(CC) $(CFLASS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 # Clean up build files
 clean:
 	rm -f $(OBJS) $(TARGET)
-
-

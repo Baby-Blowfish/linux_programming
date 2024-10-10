@@ -7,13 +7,17 @@
 #include <netinet/in.h>
 #include <pthread.h>
 
-#define BUF_SIZE 100
-#define MAX_CLNT 256
+#define MAX_CLNT 20
 
 void * handle_clnt(void * arg);
 void send_msg(char * msg, int len);
+
+
+void *send_msg(void *arg);
+void *recv_msg(void *arg);
 void error_handling(char * msg);
 
+/* variables which must be controled by mutex */
 int clnt_cnt=0;
 int clnt_socks[MAX_CLNT];
 pthread_mutex_t mutx;
@@ -23,13 +27,17 @@ int main(int argc, char *argv[])
 	int serv_sock, clnt_sock;
 	struct sockaddr_in serv_adr, clnt_adr;
 	int clnt_adr_sz;
-	pthread_t t_id;
+
+	pthread_t t_id, snd_thread, rcv_thread;
+	void *thread_return;
+
 	if(argc!=2) {
 		printf("Usage : %s <port>\n", argv[0]);
 		exit(1);
 	}
   
 	pthread_mutex_init(&mutx, NULL);
+
 	serv_sock=socket(PF_INET, SOCK_STREAM, 0);
 
 	memset(&serv_adr, 0, sizeof(serv_adr));
@@ -39,6 +47,7 @@ int main(int argc, char *argv[])
 	
 	if(bind(serv_sock, (struct sockaddr*) &serv_adr, sizeof(serv_adr))==-1)
 		error_handling("bind() error");
+
 	if(listen(serv_sock, 5)==-1)
 		error_handling("listen() error");
 	
@@ -50,6 +59,11 @@ int main(int argc, char *argv[])
 		pthread_mutex_lock(&mutx);
 		clnt_socks[clnt_cnt++]=clnt_sock;
 		pthread_mutex_unlock(&mutx);
+		
+		pthread_create(&snd_thread, NULL, send_msg, (void*)&sock);
+		pthread_create(&rcv_thread, NULL, recv_msg, (void*)&sock);
+		pthread_join(snd_thread, &thread_return);
+		pthread_join(rcv_thread, &thread_return);
 	
 		pthread_create(&t_id, NULL, handle_clnt, (void*)&clnt_sock);
 		pthread_detach(t_id);
@@ -63,7 +77,7 @@ void * handle_clnt(void * arg)
 {
 	int clnt_sock=*((int*)arg);
 	int str_len=0, i;
-	char msg[BUF_SIZE];
+	char msg[BUFSIZ];
 	
 	while((str_len=read(clnt_sock, msg, sizeof(msg)))!=0)
 		send_msg(msg, str_len);
