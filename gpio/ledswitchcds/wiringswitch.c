@@ -1,8 +1,8 @@
 #include <wiringPi.h>
 #include <stdio.h>
 
-#define SW 	9 		/* GPIO. 9 */
-#define LED 8 		/* GPIO. 8 */
+#define SW 	4 		/* GPIO. 4 */
+#define LED 1 		/* GPIO. 1 */
 
 int switchControl( )
 {
