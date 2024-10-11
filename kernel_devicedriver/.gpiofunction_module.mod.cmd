@@ -1,1 +1,0 @@
-savedcmd_/home/hyojin/src/linux_programming/kernel_devicedriver/gpiofunction_module.mod := printf '%s\n'   gpiofunction_module.o | awk '!x[$$0]++ { print("/home/hyojin/src/linux_programming/kernel_devicedriver/"$$0) }' > /home/hyojin/src/linux_programming/kernel_devicedriver/gpiofunction_module.mod

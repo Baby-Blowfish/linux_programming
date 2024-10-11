@@ -41,6 +41,7 @@ __used __section("__versions") = {
 	{ 0x695ce26c, "gpiod_set_raw_value" },
 	{ 0x12a4e128, "__arch_copy_from_user" },
 	{ 0x7682ba4e, "__copy_overflow" },
+	{ 0x790eb612, "gpiod_get_raw_value" },
 	{ 0x98cf60b3, "strlen" },
 	{ 0x6cbbfc54, "__arch_copy_to_user" },
 	{ 0x7dea1285, "try_module_get" },
@@ -49,8 +50,11 @@ __used __section("__versions") = {
 	{ 0x39f012c6, "cdev_add" },
 	{ 0x47229b5c, "gpio_request" },
 	{ 0xed199bb0, "gpiod_direction_output_raw" },
+	{ 0x9953258d, "gpiod_to_irq" },
+	{ 0x92d5838e, "request_threaded_irq" },
 	{ 0x6091b333, "unregister_chrdev_region" },
 	{ 0xa4afd25e, "cdev_del" },
+	{ 0xc1514a3b, "free_irq" },
 	{ 0xfe990052, "gpio_free" },
 	{ 0x6abf2d87, "module_put" },
 	{ 0x67a35d9, "module_layout" },
@@ -59,4 +63,4 @@ __used __section("__versions") = {
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "EAD8F90188724EF8C9D473D");
+MODULE_INFO(srcversion, "A7BEC4BDB06514D8BB5367C");
