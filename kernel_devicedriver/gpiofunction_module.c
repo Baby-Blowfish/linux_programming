@@ -3,15 +3,16 @@
 #include <linux/module.h>    // Header for kernel modules
 #include <linux/io.h>        // Header for memory-mapped I/O
 #include <linux/uaccess.h>   // Header for user space access functions
+#include <linux/gpio.h>
 
 MODULE_LICENSE("GPL");     // License information
-MODULE_AUTHOR("HYOJIN KIM"); // Author information
+MODULE_AUTHOR("HYOJINKIM"); // Author information
 MODULE_DESCRIPTION("Raspberry Pi GPIO LED Device Module"); // Description of the module
 
 #define GPIO_MAJOR        200  // Major number for the device
 #define GPIO_MINOR        0    // Minor number for the device
 #define GPIO_DEVICE       "gpioled" // Device name
-#define GPIO_LED         18    // GPIO pin number for LED (Pin 18)
+#define GPIO_LED		  589    // GPIO pin number for LED (Pin 18)   "cat /sys/kernel/debug/gpio"
 
 // Buffer for messages exchanged between user space and kernel space
 static char msg[BLOCK_SIZE] = {0};
@@ -33,43 +34,12 @@ static struct file_operations gpio_fops = {
 
 struct cdev gpio_cdev;       // Character device structure
 
-// GPIO register structure defining status and control registers
-typedef struct {
-  uint32_t status;  // GPIO status register
-  uint32_t ctrl;    // GPIO control register
-} GPIOregs;
-
-// Macro to access GPIO registers
-#define GPIO ((GPIOregs*)GPIOBase)
-
-// RIO (Read Input/Output) register structure for GPIO control
-typedef struct {
-  uint32_t Out;     // Output register
-  uint32_t OE;      // Output enable register
-  uint32_t In;      // Input register
-  uint32_t InSync;  // Synchronized input register
-} rioregs;
-
-static volatile uint32_t *gpio; // Pointer to GPIO base address
-static volatile uint32_t *PERIBase; // Pointer to peripheral base address
-
-// Base addresses for GPIO and RIO
-static volatile uint32_t *GPIOBase;
-static volatile uint32_t *RIOBase;
-static uint32_t pin = GPIO_LED; // Use GPIO pin 18
-
-// Macros for accessing RIO registers
-#define rio ((rioregs *)RIOBase)  // RIO base register access
-#define rioXOR ((rioregs *)(RIOBase + 0x1000 / 4)) // XOR register block
-#define rioSET ((rioregs *)(RIOBase + 0x2000 / 4)) // Register block for setting GPIO pins
-#define rioCLR ((rioregs *)(RIOBase + 0x3000 / 4)) // Register block for clearing GPIO pins
 
 // Module initialization function
 int init_module(void)
 {
   dev_t devno;                // Device number
   unsigned int count;         // Count for character devices
-  static void *map;           // Pointer for memory mapping
   int err;                    // Error code
 
   printk(KERN_INFO "Hello module!\n"); // Log module initialization
@@ -98,35 +68,9 @@ int init_module(void)
   printk(" 'mknod /dev/%s c %d 0'\n", GPIO_DEVICE, GPIO_MAJOR); // Log mknod command
   printk(" 'chmod 666 /dev/%s'\n", GPIO_DEVICE); // Log chmod command
 
-  // Map GPIO memory to virtual address space
-  map = ioremap(0x1f00000000, 64 * 1024 * 1024);
-  if(!map) { // Check for mapping errors
-    printk("Error : mapping GPIO memory\n");
-    iounmap(map); // Unmap if there was an error
-    return -EBUSY; // Return busy error
-  }
+  gpio_request(GPIO_LED, "LED");
+  gpio_direction_output(GPIO_LED, 0);
 
-  gpio = (volatile uint32_t *)map; // Assign mapped address to gpio pointer
-
-  // Set peripheral base address
-  PERIBase = gpio;
-
-  // Set GPIO and RIO base addresses
-  GPIOBase = PERIBase + 0xD0000 / 4; // GPIO base address offset
-  RIOBase = PERIBase + 0xe0000 / 4;  // RIO base address offset
-  volatile uint32_t *PADBase = PERIBase + 0xf0000 / 4; // PAD base address offset
-
-  // Set pointer for PAD registers
-  volatile uint32_t *pad = PADBase + 1;   
-  
-  // Configure the pad settings for the GPIO pin (set to 0x10)
-  pad[pin] = 0x10; // Setting the pad configuration for pin 18
-    
-  // Set GPIO pin to output mode
-  rioSET->OE = 0x01 << pin;  // Enable the GPIO pin as output
-
-  // Set initial output state of the GPIO pin to High
-  rioSET->Out = 0x01 << pin;  // Set the GPIO pin to logical 1 (High)
 
   return 0; // Return success
 }
@@ -139,12 +83,12 @@ void cleanup_module(void)
   unregister_chrdev_region(devno, 1); // Unregister character device region
 
   cdev_del(&gpio_cdev); // Delete the character device
+	
+  gpio_free(GPIO_LED);
+  gpio_direction_output(GPIO_LED, 0);
 
-  // Unmap GPIO memory if it was mapped
-  if (gpio) {
-    iounmap(gpio);
-  }
   module_put(THIS_MODULE); // Decrement module usage count
+  
   printk(KERN_INFO "Good-bye module!\n"); // Log module cleanup
 }
 
@@ -185,14 +129,7 @@ static ssize_t gpio_write(struct file *inode, const char *buff, size_t len, loff
 
   count = copy_from_user(msg, buff, len); // Copy message from user buffer
 
-  // Control GPIO pin number and function setting
-  uint32_t fn = 5; // Value to set the GPIO pin's functionality (5 corresponds to a special function)
-
-  // Set the GPIO pin to the specified function
-  GPIO[pin].ctrl = fn;
-
-  // Set or clear the GPIO pin based on the user input
-  (!strcmp(msg, "0")) ? (rioCLR->Out = 0x01 << pin) : (rioSET->Out = 0x01 << pin); // Control the pin output based on message
+  gpio_set_value(GPIO_LED,(!strcmp(msg, "0"))?0:1);
 
   // Log the write operation
   printk("GPIO Device(%d) write : %s(%ld)\n", MAJOR(inode->f_path.dentry->d_inode->i_rdev), msg, len);
