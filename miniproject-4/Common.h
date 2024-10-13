@@ -12,6 +12,7 @@
 #include <stdlib.h> // exit(), ...
 #include <string.h> // strerror(), ...
 #include <errno.h> // errno
+#include <ctype.h> // isspace()..
 
 // Windows 소켓 코드와 호환성을 위한 정의
 typedef int SOCKET;
@@ -27,14 +28,14 @@ void err_quit(const char *msg)
 }
 
 // 소켓 함수 오류 출력
-void err_display(const char *msg)
+void err_display_msg(const char *msg)
 {
 	char *msgbuf = strerror(errno);
 	printf("[%s] %s\n", msg, msgbuf);
 }
 
 // 소켓 함수 오류 출력
-void err_display(int errcode)
+void err_display_code(int errcode)
 {
     char *msgbuf = strerror(errcode);
     printf("[오류] %s\n", msgbuf);
