@@ -13,7 +13,9 @@ int main(int argc, char **argv)
 
 	printf("GPIO Set : %s\n", argv[1]);
 
-	fd = open("/dev/gpioledswirq", O_RDWR);
+	fd = open("/dev/gpiotimer", O_RDWR);
+	//fd = open("/dev/gpioledswirq", O_RDWR);
+	//fd = open("/dev/gpio", O_RDWR);
 	write(fd, argv[1], strlen(argv[1]));
 	read(fd, buf, strlen(argv[1]));
 

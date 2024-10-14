@@ -40,11 +40,11 @@ static int switch_irq;
 
 static irqreturn_t isr_func(int irq, void *data)
 {
-	if(irq == (switch_irq && (!gpio_get_value(GPIO_LED))))
+	if((irq == switch_irq) && (!gpio_get_value(GPIO_LED)))
 	{
 		gpio_set_value(GPIO_LED, 1);
 	}
-	else if(irq == (switch_irq && gpio_get_value(GPIO_LED)))
+	else if(irq == switch_irq && gpio_get_value(GPIO_LED))
 	{
 		gpio_set_value(GPIO_LED, 0);
 	}
@@ -93,6 +93,7 @@ int init_module(void)
 
 
   gpio_request(GPIO_SW, "SWITCH");
+  gpio_direction_input(GPIO_SW);
   
   switch_irq = gpio_to_irq(GPIO_SW);
   
