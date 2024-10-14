@@ -69,8 +69,38 @@ void *WriteThread(void *arg)
 	char msg[BUFSIZE];
 	char name_msg[NAME_SIZE + BUFSIZE];	// 가변 길이 데이터
 	int len;	// 고정 길이 데이터
+	bool client_first_set = true;
 
 	while(1) {
+		
+		if(client_first_set)
+		{
+
+			memset(msg, 0, sizeof(msg));
+			memset(name_msg, 0, sizeof(name_msg));
+			
+			sprintf(name_msg, "%s client name", name);
+			
+			len = (int)strlen(name_msg);
+
+			// 데이터 보내기(고정 길이)
+			retval = send(sock, (char *)&len, sizeof(int), 0);
+			if (retval == SOCKET_ERROR) {
+				err_display_msg("send()");
+				break;
+			}
+
+			// 데이터 보내기(가변 길이)
+			retval = send(sock, name_msg, len, 0);
+			if (retval == SOCKET_ERROR) {
+				err_display_msg("send()");
+				break;
+			}
+
+			printf("[Send] [%d +%d byte]\n", (int)sizeof(len), retval);
+			
+			client_first_set = false;
+		}
 
 		memset(msg, 0, sizeof(msg));
 		memset(name_msg, 0, sizeof(name_msg));
@@ -78,11 +108,13 @@ void *WriteThread(void *arg)
 		if(fgets(msg, BUFSIZE, stdin) == NULL)
 			break;
 
-		// '\n' 문자 제거
+		// '\n', '\r' 문자 제거
 		len = (int)strlen(msg);
-		if(msg[len - 1] == '\n')
+		if(msg[len - 1] == '\n' || msg[len -1] == '\r')
+		{
 			msg[len - 1] = '\0';
-
+			msg[len] = '\0';
+		}
 
 		sprintf(name_msg, "%s %s", name, msg);
 		
