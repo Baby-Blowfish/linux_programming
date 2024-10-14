@@ -38,74 +38,92 @@ void *ProcessClient(void *arg)
 	pthread_mutex_lock(&mutex_client);
 	// 클라이언트 정보 추가
 	clients[client_count].sock = client_sock;
+	// 클라이언트 증가
 	client_count++;
 	pthread_mutex_unlock(&mutex_client);
+	
+	//printf("%d %d \n",clients[client_count].sock,__LINE__);
 	
 	// mesg one pasing variable
 	bool mesg_pasing = true;
 
 	while (1) {
+
+
+		
+
 		// 데이터 받기(고정 길이)
 		retval = recv(client_sock, (char*)&len, sizeof(int), MSG_WAITALL);
 		if (retval == SOCKET_ERROR) {
 			err_display_msg("recv()");
+			printf("%s %s %d\n",__FILE__,__func__,__LINE__);
 			break;
 		}
 		else if (retval == 0) // 클라이언트와 연결이 끊어졌을 경우
 			break;
 
-		memset(name_msg, 0, sizeof(name_msg));
+		memset(name_msg, 0, sizeof(name_msg));	// 메시지 초기화
 
 		// 데이터 받기(가변  길이)
 		retval = recv(client_sock, name_msg, len, MSG_WAITALL);
 		if (retval == SOCKET_ERROR) {
 			err_display_msg("recv()");
+			printf("%s %s %d\n",__FILE__,__func__,__LINE__);
 			break;
 		}
 		else if (retval == 0) // 클라이언트와 연결이 끊어졌을 경우 
 			break;
 
 
-		if(mesg_pasing)
+
+
+
+		// mesg 분리		
+		memset(name_msg_copy, 0, sizeof(name_msg));
+
+		// 원본 문자열 보호를 위해 복사본 사용
+		strncpy(name_msg_copy, name_msg, sizeof(name_msg_copy));
+		name_msg_copy[sizeof(name_msg_copy) - 1] = '\0'; // 문자열 종료 보장
+
+		// 이름 추출
+		name = strtok(name_msg_copy, "[]");  // 대괄호로 이름 추출
+
+		if (name == NULL) {
+				printf("메시지 파싱 오류\n");
+				continue;
+		}
+
+		strtok(NULL, ":");           // ':' 이전까지 건너뛰기
+		msg = strtok(NULL, "");      // 메시지 추출
+
+		if (msg == NULL) {
+				printf("메시지 파싱 오류\n");
+				continue;
+		}
+
+		// 앞 공백 제거
+		while (isspace((unsigned char)*msg)) msg++; // 앞 공백 제거
+		
+		printf("이름: %s, 메시지: %s\n", name, msg);
+		
+		pthread_mutex_lock(&mutex_client);
+		
+		if(mesg_pasing = true)
 		{
-			memset(name_msg_copy, 0, sizeof(name_msg));
-
-			// 원본 문자열 보호를 위해 복사본 사용
-			strncpy(name_msg_copy, name_msg, sizeof(name_msg_copy));
-			name_msg_copy[sizeof(name_msg_copy) - 1] = '\0'; // 문자열 종료 보장
-
-			// 이름 추출
-			name = strtok(name_msg_copy, "[]");  // 대괄호로 이름 추출
-
-			if (name == NULL) {
-					printf("메시지 파싱 오류\n");
-					continue;
-			}
-
-			strtok(NULL, ":");           // ':' 이전까지 건너뛰기
-			msg = strtok(NULL, "");      // 메시지 추출
-
-			if (msg == NULL) {
-					printf("메시지 파싱 오류\n");
-					continue;
-			}
-
-			// 앞 공백 제거
-			while (isspace((unsigned char)*msg)) msg++; // 앞 공백 제거
-			
-			printf("이름: %s, 메시지: %s\n", name, msg);
-			
-			pthread_mutex_lock(&mutex_client);
 			// 이름 저장
-			strncpy(clients[client_count].name, name, sizeof(clients[client_count].name));
-			pthread_mutex_unlock(&mutex_client);
-			
+			strncpy(clients[client_count-1].name, name, sizeof(clients[client_count-1].name));
 			mesg_pasing = false;
-		}	
+		}
+		pthread_mutex_unlock(&mutex_client);
+
+
+
+
+		
 
 		// 받은 데이터 출력
 		name_msg[retval] = '\0';
-		printf("[TCP/%s:%d] [Recv] [%d +%d byte] %s \n", addr, ntohs(clientaddr.sin_port), (int)sizeof(len),retval,name_msg);
+		printf("[TCP/%s:%d] [%d +%d byte] Received from [%s] about [%s]\n", addr, ntohs(clientaddr.sin_port),(int)sizeof(len),retval,name,name_msg);
 
 		
 		
@@ -113,9 +131,12 @@ void *ProcessClient(void *arg)
 		if (strcmp(msg, "q") == 0)
 		{
 			pthread_mutex_lock(&mutex_client);
-			for( int i =  0; i < client_count; i++)	// 모든 클라이언트에게 메시지 브로드캐스트
+
+
+			// 클라이언트들에게 종료 메시지 전송
+			for( int i =  0; i < client_count; i++)	
 			{
-				if(clients[i].sock != client_sock)	// send to other clients about this client close  info
+				if(clients[i].sock != client_sock)	// 요청 받은 클라이언트가 아닌 다른 클라이언트들에게 정보 알림
 				{
 					// close mesage 
 					memset(name_msg, 0, sizeof(name));
@@ -126,6 +147,7 @@ void *ProcessClient(void *arg)
 					retval = send(clients[i].sock, (char *)&len, sizeof(int), 0);
 					if (retval == SOCKET_ERROR) {
 						err_display_msg("send()");
+						printf("%s %s %d\n",__FILE__,__func__,__LINE__);
 						break;
 					}
 
@@ -133,11 +155,12 @@ void *ProcessClient(void *arg)
 					retval = send(clients[i].sock, name_msg, len, 0);
 					if (retval == SOCKET_ERROR) {
 						err_display_msg("send()");
+						printf("%s %s %d\n",__FILE__,__func__,__LINE__);
 						break;
 					}
-					printf("[TCP/%s:%d] [Send] [%d +%d byte] %s to [Clients : %s]\n", addr, ntohs(clientaddr.sin_port),(int)sizeof(len),retval,name_msg,clients[i].name);
+					printf("[TCP/%s:%d] [%d +%d byte] [%s] Send to [%s] about [%s]\n", addr, ntohs(clientaddr.sin_port),(int)sizeof(len),retval,name,clients[i].name,name_msg);
 				}
-				else
+				else	// 요청 받은 클라이언트에게 종료하라고 알림
 				{	
 					// send to client about "q"
 					memset(name_msg, 0, sizeof(name));
@@ -148,6 +171,7 @@ void *ProcessClient(void *arg)
 					retval = send(clients[i].sock, (char *)&len, sizeof(int), 0);
 					if (retval == SOCKET_ERROR) {
 						err_display_msg("send()");
+						printf("%s %s %d\n",__FILE__,__func__,__LINE__);
 						break;
 					}
 
@@ -155,12 +179,16 @@ void *ProcessClient(void *arg)
 					retval = send(clients[i].sock, name_msg, len, 0);
 					if (retval == SOCKET_ERROR) {
 						err_display_msg("send()");
+						printf("%s %s %d\n",__FILE__,__func__,__LINE__);
 						break;
 					}
-					printf("[TCP/%s:%d] [Send] [%d +%d byte] %s to [Clients : %s]\n", addr, ntohs(clientaddr.sin_port),(int)sizeof(len),retval,name_msg,clients[i].name);
+					
+					printf("[TCP/%s:%d] [%d +%d byte] Send to [%s] about [%s]\n", addr, ntohs(clientaddr.sin_port),(int)sizeof(len),retval,name,name_msg);
 				}
 			}
 			
+
+			// 종료한 클라이언트 제거
 			if (client_count < 0) {
 				printf("No clients to remove.\n");	
 				 // 클라이언트가 없으면 함수 종료
@@ -186,19 +214,26 @@ void *ProcessClient(void *arg)
 
 			pthread_mutex_unlock(&mutex_client);
 
+
+			// 클라이언트를 관리하는 쓰래드 종료
 			break;	// while(1) 
 		}
 		else
 		{
 			pthread_mutex_lock(&mutex_client);
+			
+			
 			for( int i =  0; i < client_count; i++)	// 모든 클라이언트에게 메시지 브로드캐스트
 			{
 				if(clients[i].sock != client_sock)	//  자신에게는 보내지 않음
 				{
+					
+					
 					// 데이터 보내기(고정 길이)
 					retval = send(clients[i].sock, (char *)&len, sizeof(int), 0);
 					if (retval == SOCKET_ERROR) {
 						err_display_msg("send()");
+						printf("%s %s %d\n",__FILE__,__func__,__LINE__);
 						break;
 					}
 
@@ -206,9 +241,10 @@ void *ProcessClient(void *arg)
 					retval = send(clients[i].sock, name_msg, len, 0);
 					if (retval == SOCKET_ERROR) {
 						err_display_msg("send()");
+						printf("%s %s %d\n",__FILE__,__func__,__LINE__);
 						break;
 					}
-					printf("[TCP/%s:%d] [%d +%d byte] [%s] [Send to] [%s] : %s\n", addr, ntohs(clientaddr.sin_port),(int)sizeof(len),retval,name,clients[i].name,msg);
+					printf("[TCP/%s:%d] [%d +%d byte] [%s] Send to [%s] about [%s]\n", addr, ntohs(clientaddr.sin_port),(int)sizeof(len),retval,name,clients[i].name,name_msg);
 				}
 			}		
 			pthread_mutex_unlock(&mutex_client);
@@ -257,6 +293,7 @@ int main(int argc, char *argv[])
 		client_sock = accept(listen_sock, (struct sockaddr *)&clientaddr, &addrlen);
 		if (client_sock == INVALID_SOCKET) {
 			err_display_msg("accept()");
+			printf("%s %s %d\n",__FILE__,__func__,__LINE__);
 			break;
 		}
 
