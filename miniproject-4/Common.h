@@ -14,6 +14,7 @@
 #include <stdbool.h> // bool variable
 #include <errno.h> // errno
 #include <ctype.h> // isspace()..
+#include <signal.h>	// signal()...
 
 // Windows 소켓 코드와 호환성을 위한 정의
 typedef int SOCKET;

@@ -5,11 +5,8 @@
 #define NAME_SIZE  20
 #define MAX_CLNT   20
 
-pthread_mutex_t mutex_client;	// clients와 client_count 변수에 접근하기 위한 뮤텍스
+pthread_mutex_t mutex_client;
 
-// signal()
-static void sigHandler(int signo);
-SOCKET listen_sock;
 
 // 클라이언트 정보를 저장할 구조체
 typedef struct {
@@ -111,7 +108,7 @@ void *ProcessClient(void *arg)
 		
 		pthread_mutex_lock(&mutex_client);
 		
-		if(mesg_pasing == true)
+		if(mesg_pasing = true)
 		{
 			// 이름 저장
 			strncpy(clients[client_count-1].name, name, sizeof(clients[client_count-1].name));
@@ -142,9 +139,9 @@ void *ProcessClient(void *arg)
 				if(clients[i].sock != client_sock)	// 요청 받은 클라이언트가 아닌 다른 클라이언트들에게 정보 알림
 				{
 					// close mesage 
-					memset(name_msg, 0, strlen(name));
+					memset(name_msg, 0, sizeof(name));
 					sprintf(name_msg,"[%s] : Client close",name);
-					len = (int)strlen(name_msg);
+					len = (int)sizeof(name_msg);
 
 					// 데이터 보내기(고정 길이)
 					retval = send(clients[i].sock, (char *)&len, sizeof(int), 0);
@@ -166,9 +163,9 @@ void *ProcessClient(void *arg)
 				else	// 요청 받은 클라이언트에게 종료하라고 알림
 				{	
 					// send to client about "q"
-					memset(name_msg, 0, strlen(name));
+					memset(name_msg, 0, sizeof(name));
 					sprintf(name_msg,"[%s] : q",name);
-					len = (int)strlen(name_msg);
+					len = (int)sizeof(name_msg);
 
 					// 데이터 보내기(고정 길이)
 					retval = send(clients[i].sock, (char *)&len, sizeof(int), 0);
@@ -260,24 +257,15 @@ void *ProcessClient(void *arg)
 	// 소켓 닫기
 	close(client_sock);
 	printf("[TCP 서버] 클라이언트 종료: IP 주소=%s, 포트 번호=%d\n",addr, ntohs(clientaddr.sin_port));
-	pthread_exit((void*)0);
-
+	return (void*)0;
 }
 
 int main(int argc, char *argv[])
 {
-
-	// 시그널 등록
-	signal(SIGINT, sigHandler);
-	
-		
-	// 뮤텍스 초기화
-	pthread_mutex_init(&mutex_client, NULL);
-	
 	int retval;
 
 	// 소켓 생성
-	listen_sock = socket(AF_INET, SOCK_STREAM, 0);
+	SOCKET listen_sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (listen_sock == INVALID_SOCKET) err_quit("socket()");
 
 	// bind()
@@ -318,47 +306,12 @@ int main(int argc, char *argv[])
 		// 스레드 생성
 		retval = pthread_create(&tid, NULL, ProcessClient,
 			(void *)(long long)client_sock);
-		if (retval != 0) { close(client_sock);}
-
-		pthread_detach(tid);
-	}
-	
-	// 뮤텍스 삭제
-	pthread_mutex_destroy(&mutex_client);
-
-	for (int i = 0; i < client_count; i++) {
-			close(clients[i].sock); // 모든 클라이언트 소켓 닫기
+		if (retval != 0) { close(client_sock); }
 	}
 
-	// 서버 소켓 닫기
+	// 소켓 닫기
 	close(listen_sock);
 	return 0;
 }
 
-static void sigHandler(int signo)
-{
-	if(signo == SIGINT)
-	{
-		printf("SIGINT is catched : %d\n",signo);
-	}
-
-	// 클라이언트 소켓들 닫기
-    pthread_mutex_lock(&mutex_client);
-
-    for (int i = 0; i < client_count; i++) {
-        close(clients[i].sock);
-    }
-
-    // 서버 소켓 닫기
-    close(listen_sock);
-    
-	pthread_mutex_unlock(&mutex_client);
-
-
-	// 뮤텍스 삭제
-	pthread_mutex_destroy(&mutex_client);
-    
-	exit(0);  // 프로그램 종료
-	
-}
 
