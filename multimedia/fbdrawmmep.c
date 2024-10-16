@@ -81,6 +81,13 @@ static void drawfacemmap(int fd, int start_x, int start_y, int end_x, int end_y,
 	
 	pfb = (unsigned short *)mmap(NULL,vinfo.xres*vinfo.yres*color,PROT_READ|PROT_WRITE,MAP_SHARED,fd,0);
 
+	// 오류 처리
+    if (pfb == MAP_FAILED) {
+        perror("Error: mmap failed");
+        close(fd);  // fd를 닫고 종료
+        return;
+    }
+
 	for(int x = start_x ; x< end_x; x++)
 	{
 		for(int y = start_y; y < end_y; y++)
