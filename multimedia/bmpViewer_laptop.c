@@ -14,22 +14,17 @@
 #define LIMIT_UBYTE(n) (n > UCHAR_MAX) ? UCHAR_MAX : (n < 0) ? 0 : n  // UCHAR_MAX를 넘거나 0보다 작은 값 처리
 
 typedef unsigned char ubyte;  // unsigned char에 대한 별칭 정의
-typedef unsigned short u2byte;  // unsigned short에 대한 별칭 정의
 
-extern int readBmp(char *filename, ubyte **pData, int *cols, int *rows);  // BMP 파일을 읽는 외부 함수 선언
+extern int readBmpHeader(const char *filename, int *cols, int *rows, int *depth_bmp);  // BMP 헤더만 읽는 함수 선언
+extern int readBmpData(const char *filename, unsigned char **pData, int imageSize);  // BMP 데이터만 읽는 함수 선언
 
-// RGB 값을 16비트 픽셀 형식으로 변환하는 함수 (5-6-5 비트 구조로 변환)
-unsigned short makepixel(unsigned char r, unsigned char g, unsigned char b)
-{
-    return (unsigned short)(((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3));  // RGB 값을 5비트, 6비트, 5비트로 변환
-}
 
 int main(int argc, char **argv)
 {
-    int cols, rows;  // BMP 이미지의 가로(cols)와 세로(rows) 크기
+    int cols, rows, depth_bmp;  // BMP 이미지의 가로(cols)와 세로(rows) 크기, depth
     ubyte r, g, b, a = 255;  // RGB와 알파 값을 저장할 변수
     ubyte *pData = NULL;  // BMP 이미지의 픽셀 데이터를 저장할 포인터
-    u2byte *pFbMap = NULL, *pBmpData = NULL;  // 프레임버퍼 메모리 맵핑 포인터와 BMP 데이터를 위한 포인터
+    ubyte *pFbMap = NULL, *pBmpData = NULL;  // 프레임버퍼 메모리 맵핑 포인터와 BMP 데이터를 위한 포인터
     struct fb_var_screeninfo vinfo;  // 프레임버퍼의 가변 화면 정보 구조체
     int fbfd;  // 프레임버퍼 파일 디스크립터
 
@@ -56,19 +51,22 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    int color = vinfo.bits_per_pixel / 8.;  // 프레임버퍼의 픽셀당 바이트 수
+    int depth_fb = vinfo.bits_per_pixel / 8.;  // 프레임버퍼의 픽셀당 바이트 수 : 4byte
 
-    // BMP 파일에서 이미지 데이터를 읽어오는 함수 호출
-    if (readBmp(argv[1], &pData, &cols, &rows) < 0)
+    // 1. BMP 헤더 정보를 먼저 읽어서 cols, rows, depth_bmp 값을 얻음
+    if (readBmpHeader(argv[1], &cols, &rows, &depth_bmp) < 0)
     {
-        perror("readBmp()");
+        perror("readBmpHeader()");
         close(fbfd);
         return -1;
     }
 
-    // BMP 데이터를 저장할 메모리 할당 (BMP 이미지 크기 기준)
-    pBmpData = (u2byte *)malloc(cols * rows * color);
-    if (pBmpData == NULL)
+    // 이미지 크기 계산 (cols * rows * 픽셀당 바이트 수)
+    int imageSize = cols * rows * depth_bmp;
+
+    // 2. BMP 데이터를 저장할 메모리 동적 할당
+    pData = (ubyte *)malloc(imageSize);
+    if (pData == NULL)
     {
         perror("Failed to allocate memory for BMP data");
         free(pData);
@@ -76,41 +74,65 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    // 프레임버퍼 메모리 맵핑
-    pFbMap = (u2byte *)mmap(0, vinfo.xres * vinfo.yres * color, PROT_READ | PROT_WRITE, MAP_SHARED, fbfd, 0);
-    if (pFbMap == (u2byte *)-1)
+    // 3. BMP 데이터를 읽어오기
+    if (readBmpData(argv[1], &pData, imageSize) < 0)
     {
-        perror("mmap()");
-        free(pBmpData);
+        perror("readBmpData()");
         free(pData);
         close(fbfd);
         return -1;
     }
 
-    // BMP 데이터를 프레임버퍼로 변환하여 복사
-    for (int y = 0, k, total_y; y < rows && y < vinfo.yres; y++)  // BMP 이미지 크기와 프레임버퍼 크기를 비교하여 제한
+    // BMP 데이터를 프레임버퍼로 바꿀 메모리 할당
+    pBmpData = (ubyte *)malloc(vinfo.xres * vinfo.yres * depth_fb);
+	if (pBmpData == NULL)
     {
-        k = (rows - y - 1) * cols * (24 / 8);  // BMP 파일에서 아래쪽 픽셀부터 읽기 위해 역순으로 처리
-        total_y = y * cols * (24 / 8);  // 현재 y축의 시작 위치 계산
+        perror("Failed to allocate memory for pBmpData data");
+        free(pData);
+        free(pBmpData);
+        close(fbfd);
+        return -1;
+    }
 
-        for (int x = 0; x < cols && x < vinfo.xres; x++)  // 가로 방향에서도 프레임버퍼 크기만큼 제한
+    // 프레임버퍼 메모리 맵핑
+    pFbMap = (ubyte *)mmap(0, vinfo.xres * vinfo.yres * depth_fb, PROT_READ | PROT_WRITE, MAP_SHARED, fbfd, 0);
+	if (pFbMap == (ubyte *)-1)
+    {
+        perror("mmap()");
+        free(pData);
+        free(pBmpData);
+        free(pFbMap);
+        close(fbfd);
+        return -1;
+    }
+printf("%d %s\n",__LINE__,__func__);
+    // BMP 데이터를 프레임버퍼의 포멧으로 변환하여 복사
+    for (int y = 0, k, total_y; y < rows; y++)  // BMP 이미지 크기와 프레임버퍼 크기를 비교하여 제한
+    {
+        k = (rows - y - 1) * cols * depth_bmp;  // BMP 파일에서 아래쪽 픽셀부터 읽기 위해 역순으로 처리
+        total_y = y*vinfo.xres * depth_fb;  // fb의 y축의 시작 위치 계산
+
+        for (int x = 0; x < cols; x++)  // 가로 방향에서도 프레임버퍼 크기만큼 제한
         {
             // RGB 값을 BMP 데이터에서 가져와서 클램핑 후 픽셀값으로 변환
-            b = LIMIT_UBYTE(pData[x * (24 / 8) + k + 0]);  // 파란색 값
-            g = LIMIT_UBYTE(pData[x * (24 / 8) + k + 1]);  // 초록색 값
-            r = LIMIT_UBYTE(pData[x * (24 / 8) + k + 2]);  // 빨간색 값
+            b = LIMIT_UBYTE(pData[k + x*depth_bmp + 0]);  // 파란색 값
+            g = LIMIT_UBYTE(pData[k + x*depth_bmp + 1]);  // 초록색 값
+            r = LIMIT_UBYTE(pData[k + x*depth_bmp + 2]);  // 빨간색 값
 
-            unsigned short pixel;
-            pixel = makepixel(r, g, b);  // 픽셀 값을 16비트 형식으로 변환
-            *(pBmpData + (x + y * vinfo.xres)) = pixel;  // BMP 데이터를 메모리에 저장
+            *(pBmpData + x*depth_fb + total_y + 0) = b;
+            *(pBmpData + x*depth_fb + total_y + 1) = g;  
+            *(pBmpData + x*depth_fb + total_y + 2) = r;  
+            *(pBmpData + x*depth_fb + total_y + 3) = a;  
         }
     }
 
+printf("%d %s\n",__LINE__,__func__);
     // 변환한 BMP 데이터를 프레임버퍼로 복사
-    memcpy(pFbMap, pBmpData, vinfo.xres * vinfo.yres * color);
+    memcpy(pFbMap, pBmpData, vinfo.xres * vinfo.yres * depth_fb);
 
+printf("%d %s\n",__LINE__,__func__);
     // 메모리 맵핑 해제 및 동적 할당 메모리 해제
-    munmap(pFbMap, vinfo.xres * vinfo.yres * color);
+    munmap(pFbMap, vinfo.xres * vinfo.yres * depth_fb);
     free(pBmpData);
     free(pData);
     close(fbfd);  // 프레임버퍼 파일 디스크립터 닫기
