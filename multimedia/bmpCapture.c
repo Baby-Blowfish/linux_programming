@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>                  /* 저수준 입출력 처리를 위한 헤더 파일 */
+#include <limits.h>
 #include <unistd.h>                 /* POSIX 운영체제 API */
 #include <errno.h>                  /* 오류 코드 정의 */
 #include <malloc.h>                 /* 동적 메모리 할당 관련 함수들 */
@@ -18,11 +19,26 @@
 
 #include "bmpHeader.h"              /* BMP 파일 저장을 위한 헤더 파일 */
 
-#define NUMCOLOR 3                  /* RGB 색상 성분의 개수 */
-#define FBDEV        "/dev/fb0"     /* 프레임 버퍼 장치 파일 경로 */
+#define NUMCOLOR	3               /* BMP 파 일 RGB 색상 성분의 개수 */
+#define FBDEV       "/dev/fb0"		/* 프레임 버퍼 장치 파일 경로 */
 #define VIDEODEV    "/dev/video0"   /* 비디오 캡처 장치 파일 경로 */
 #define WIDTH       800             /* 캡처할 이미지의 너비 */
 #define HEIGHT      600             /* 캡처할 이미지의 높이 */
+
+typedef unsigned char u2byte;
+
+/* 영상 데이터 버퍼 구조체 */
+struct buffer {
+    void * start;    /* 버퍼 시작 주소 */
+    size_t length;   /* 버퍼 길이 */
+};
+
+static short *fbp = NULL;                  /* 프레임버퍼 메모리 맵핑을 위한 변수 */
+struct buffer *buffers = NULL;             /* 비디오 캡처용 버퍼 */
+static unsigned int n_buffers = 0;         /* 버퍼 개수 */
+static struct fb_var_screeninfo vinfo;     /* 프레임버퍼 정보 구조체 */
+#define NO_OF_LOOP 1
+
 
 /* BMP 이미지를 저장하는 함수 */
 void saveImage(unsigned char *inimg)
@@ -44,7 +60,7 @@ void saveImage(unsigned char *inimg)
     bmpInfoHeader.biWidth = WIDTH;                         /* 이미지의 너비 */
     bmpInfoHeader.biHeight = HEIGHT;                       /* 이미지의 높이 */
     bmpInfoHeader.biPlanes = 1;                            /* 색상 평면 수 (항상 1) */
-    bmpInfoHeader.biBitcount = NUMCOLOR*8;                 /* 픽셀당 비트 수 (RGB의 경우 24비트) */
+    bmpInfoHeader.biBitCount = NUMCOLOR*8;                 /* 픽셀당 비트 수 (RGB의 경우 24비트) */
     bmpInfoHeader.SizeImage = WIDTH * HEIGHT * bmpInfoHeader.biBitCount / 8;  /* 이미지 크기 */
     bmpInfoHeader.biXPelsPerMeter = 0x0B12;                /* 가로 해상도 */
     bmpInfoHeader.biYPelsPerMeter = 0x0B12;                /* 세로 해상도 */
@@ -63,17 +79,6 @@ void saveImage(unsigned char *inimg)
 
     fclose(fp);  /* 파일 닫기 */
 }
-
-/* 영상 데이터 버퍼 구조체 */
-struct buffer {
-    void * start;    /* 버퍼 시작 주소 */
-    size_t length;   /* 버퍼 길이 */
-};
-
-static short *fbp = NULL;                  /* 프레임버퍼 메모리 맵핑을 위한 변수 */
-struct buffer *buffers = NULL;             /* 비디오 캡처용 버퍼 */
-static unsigned int n_buffers = 0;         /* 버퍼 개수 */
-static struct fb_var_screeninfo vinfo;     /* 프레임버퍼 정보 구조체 */
 
 /* 에러 메시지 출력 후 종료 */
 static void mesg_exit(const char *s)
@@ -106,13 +111,13 @@ static void process_image(const void *p)
     int x, y, j;                            /* 반복문에 사용할 변수 */
     int y0, u, y1, v, r, g, b;              /* YUV -> RGB 변환을 위한 변수 */
     unsigned short pixel;                   /* 16비트 색상 값 */
-    long location = 0;                      /* 프레임버퍼 위치 */
+    long location = 0, count = 0;                      /* 프레임버퍼 위치 */
     unsigned char inimg[NUMCOLOR * WIDTH * HEIGHT];  /* 이미지 데이터를 저장할 배열 */
 
     /* YUYV -> RGB 변환 후 프레임버퍼에 쓰기 */
-    for (y = 0; y < height; ++y) {
-        for (j = 0, x = 0; j < vinfo.xres * 2; j += 4, x += 2) {
-            if (j >= width * 2) {  /* 빈 공간을 처리 */
+    for (y = 0; y < height; ++y, count = 0) {
+        for (j = 0, x = 0; j < vinfo.xres*2; j += 4, x += 2) {
+            if (j >= width*2) {  /* 빈 공간을 처리 */
                 location++;
                 continue;
             }
@@ -127,18 +132,34 @@ static void process_image(const void *p)
             r = clip((298 * y0 + 409 * v + 128) >> 8, 0, 255);
             g = clip((298 * y0 - 100 * u - 208 * v + 128) >> 8, 0, 255);
             b = clip((298 * y0 + 516 * u + 128) >> 8, 0, 255);
-            pixel = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);  /* 16비트 색상으로 변환 */
-            fbp[location++] = pixel;  /* 프레임버퍼에 저장 */
+            
+			pixel = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);  /* 16비트 색상으로 변환 */
+            fbp[location++] = pixel;  /* 2byte 단위 프레임버퍼에 저장 */
+
+			/*Bmp 이미지 데이터 저장*/
+            inimg[(height-y-1)*width*NUMCOLOR + count++] = b;
+            inimg[(height-y-1)*width*NUMCOLOR + count++] = g;
+            inimg[(height-y-1)*width*NUMCOLOR + count++] = r;
+
 
             /* 두 번째 픽셀 YUV -> RGB 변환 */
             r = clip((298 * y1 + 409 * v + 128) >> 8, 0, 255);
             g = clip((298 * y1 - 100 * u - 208 * v + 128) >> 8, 0, 255);
             b = clip((298 * y1 + 516 * u + 128) >> 8, 0, 255);
-            pixel = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);  /* 16비트 색상 변환 */
+            
+			pixel = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);  /* 16비트 색상 변환 */
             fbp[location++] = pixel;  /* 프레임버퍼에 저장 */
+
+			/*Bmp 이미지 데이터 저장*/
+            inimg[(height-y-1)*width*NUMCOLOR + count++] = b;
+            inimg[(height-y-1)*width*NUMCOLOR + count++] = g;
+            inimg[(height-y-1)*width*NUMCOLOR + count++] = r;
+
         }
         in += istride;  /* 다음 라인으로 이동 */
     }
+
+	saveImage(inimg);
 }
 
 /* 프레임을 읽어 처리하는 함수 */
@@ -153,7 +174,7 @@ static int read_frame(int fd)
     if (-1 == xioctl(fd, VIDIOC_DQBUF, &buf)) {
         switch (errno) {
             case EAGAIN: return 0;         /* 버퍼가 준비되지 않았을 때 */
-            case EIO:                      /* I/O 오류 */
+            case EIO:                     /* I/O 오류 */
             default: mesg_exit("VIDIOC_DQBUF");
         }
     }
@@ -354,7 +375,8 @@ int main(int argc, char **argv)
     }
 
     /* 프레임버퍼 메모리 맵핑 */
-    long screensize = vinfo.xres * vinfo.yres * 2;
+    long screensize = vinfo.xres * vinfo.yres * (vinfo.bits_per_pixel/8);
+
     fbp = (short *)mmap(NULL, screensize, PROT_READ | PROT_WRITE, MAP_SHARED, fbfd, 0);
     if (fbp == (short*)-1) {
         perror("mmap() : framebuffer device to memory");
@@ -385,7 +407,7 @@ int main(int argc, char **argv)
     if (-1 == xioctl(camfd, VIDIOC_STREAMOFF, &type))
         mesg_exit("VIDIOC_STREAMOFF");
 
-    /* 메모리 정리 */
+    //* 메모리 정리 */
     for (int i = 0; i < n_buffers; ++i)
         if (-1 == munmap(buffers[i].start, buffers[i].length))
             mesg_exit("munmap");
