@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>                  /* 저수준 입출력을 위한 헤더 */
+#include <fcntl.h>                  /* low-level i/o */
+#include <limits.h>
 #include <unistd.h>
 #include <errno.h>
 #include <malloc.h>
@@ -16,22 +17,73 @@
 #include <asm/types.h>              /* videodev2.h에서 필요한 데이터 타입 정의 */
 #include <linux/videodev2.h>        /* V4L2를 제어하기 위한 헤더 */
 
-#define FBDEV        "/dev/fb0"      /* 프레임 버퍼 디바이스 파일 경로 */
-#define VIDEODEV     "/dev/video0"   /* 비디오 캡처 디바이스 파일 경로 */
+#include "bmpHeader.h"  // BMP 파일 헤더를 처리하기 위한 사용자 정의 헤더 파일
+
+#define NUMCOLOR 3
+#define FBDEV        "/dev/fb0"      /* 프레임 버퍼를 위한 디바이스 파일 */
+#define VIDEODEV    "/dev/video0"
 #define WIDTH        640             /* 캡처할 영상의 너비 */
 #define HEIGHT       360             /* 캡처할 영상의 높이 */
+
+typedef unsigned char ubyte;  // unsigned char에 대한 별칭 정의
+
+extern int readBmpHeader(const char *filename, int *cols, int *rows, int *depth_bmp);  // BMP 헤더만 읽는 함수 선언
+extern int readBmpData(const char *filename, unsigned char **pData, int imageSize);  // BMP 데이터만 읽는 함수 선언
 
 /* Video4Linux2에서 사용할 영상 데이터를 저장할 버퍼 구조체 */
 struct buffer {
     void * start;    /* 버퍼 시작 주소 */
     size_t length;   /* 버퍼 길이 */
 };
-
-typedef unsigned char ubyte;  // unsigned char에 대한 별칭 정의
 static ubyte *fbp = NULL;               /* 프레임버퍼의 메모리 맵핑을 위한 변수 */
 struct buffer *buffers = NULL;          /* 비디오 캡처용 버퍼 */
 static unsigned int n_buffers = 0;      /* 버퍼 개수 */
 static struct fb_var_screeninfo vinfo;  /* 프레임버퍼의 정보 저장 구조체 */
+#define NO_OF_LOOP 1
+
+
+void saveImage(unsigned char *inimg)
+{
+	RGBQUAD palrgb[256];
+	FILE *fp;
+	BITMAPFILEHEADER bmpFileHeader;
+	BITMAPINFOHEADER bmpInfoHeader;
+
+	memset(&bmpFileHeader, 0, sizeof(BITMAPFILEHEADER));
+	bmpFileHeader.bfType = 0x4d42;		// (unsigned short)('B'|'M' << 8)
+	bmpFileHeader.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
+	bmpFileHeader.bfOffBits += sizeof(RGBQUAD)*256;
+	bmpFileHeader.bfSize = bmpFileHeader.bfOffBits;
+	bmpFileHeader.bfSize += WIDTH*HEIGHT*NUMCOLOR;
+
+	memset(&bmpInfoHeader, 0, sizeof(BITMAPINFOHEADER));
+	bmpInfoHeader.biSize = sizeof(BITMAPINFOHEADER);
+	bmpInfoHeader.biWidth = WIDTH;
+	bmpInfoHeader.biHeight = HEIGHT;
+	bmpInfoHeader.biPlanes = 1;
+	bmpInfoHeader.biBitCount = NUMCOLOR*8;
+	bmpInfoHeader.SizeImage = WIDTH*HEIGHT*bmpInfoHeader.biBitCount/8;
+	bmpInfoHeader.biXPelsPerMeter = 0x0B12;
+	bmpInfoHeader.biYPelsPerMeter = 0x0B12;
+	
+	if((fp= fopen("capture.bmp","wb"))==NULL)
+	{
+		fprintf(stderr,"Error : Failed to open file..\n");
+		exit(EXIT_FAILURE);
+	}
+
+	fwrite((void*)&bmpFileHeader, sizeof(bmpFileHeader),1,fp);
+	fwrite((void*)&bmpInfoHeader, sizeof(bmpInfoHeader),1,fp);
+	fwrite(palrgb, sizeof(RGBQUAD),256,fp);
+	fwrite(inimg, sizeof(unsigned char),WIDTH*HEIGHT*NUMCOLOR,fp);
+
+	fclose(fp);
+
+}
+
+
+
+
 
 /* 에러 발생 시 메시지 출력 후 종료하는 함수 */
 static void mesg_exit(const char *s)
@@ -54,6 +106,7 @@ extern inline int clip(int value, int min, int max)
     return (value > max ? max : value < min ? min : value);
 }
 
+
 /* 캡처된 YUYV 형식의 데이터를 처리하여 프레임버퍼에 출력하는 함수 */
 static void process_image(const void *p)
 {
@@ -63,10 +116,12 @@ static void process_image(const void *p)
     int istride = WIDTH * 2;                /* 한 라인의 데이터 크기 (YUYV 형식은 픽셀당 2바이트 사용) */
     int x, y, j;                            /* 반복문에서 사용할 변수 */
     int y0, u, y1, v, r, g, b, a = 0xff, depth_fb = vinfo.bits_per_pixel/8;    /* YUYV 데이터를 분리한 후 RGBA 변환에 사용할 변수 */
-    long location = 0;                      /* 프레임버퍼에서 현재 위치를 가리킬 인덱스 */
+    long location = 0, count =0;                      /* 프레임버퍼에서 현재 위치를 가리킬 인덱스 */
+    ubyte inimg[NUMCOLOR*WIDTH*HEIGHT];     // Bmp 이미지 저장을 위한 변수
+
 
     /* YUYV 데이터를 RGBA로 변환한 후 프레임버퍼에 쓰는 루프 */
-    for (y = 0; y < height; ++y) {  /* 각 라인을 반복 */
+    for (y = 0; y < height; ++y, count = 0) {  /* 각 라인을 반복 */
         for (j = 0, x = 0; x < vinfo.xres; j += 4, x += 2) {  /* 한 라인 내에서 YUYV 데이터를 2픽셀씩 처리 */
             /* 프레임버퍼의 크기를 넘어서지 않는지 검사 */
             if (j >= istride) {  /* 비디오 데이터의 유효 범위를 넘으면 넘어가서 빈 공간을 채움 */
@@ -86,26 +141,38 @@ static void process_image(const void *p)
             g = clip((298 * y0 - 100 * u - 208 * v + 128) >> 8, 0, 255);  /* Y, U, V를 사용해 초록(G) 값 계산 */
             b = clip((298 * y0 + 516 * u + 128) >> 8, 0, 255);  /* 밝기(Y)와 색차(U)를 사용해 파랑(B) 값 계산 */
 
-            /* 32비트 BMP 저장을 위한 RGB 값 저장 */
+            /* 32비트 Frame Buffer 저장을 위한 RGB 값 저장 */
             *(fbp + location++) = b;  /* 파란색 값 저장 */
             *(fbp + location++) = g;  /* 초록색 값 저장 */
             *(fbp + location++) = r;  /* 빨간색 값 저장 */
             *(fbp + location++) = a;  /* 알파 값 (투명도) 저장 */
 
+            /*Bmp 이미지 데이터 저장*/
+            inimg[(height-y-1)*width*NUMCOLOR + count++] = b;
+            inimg[(height-y-1)*width*NUMCOLOR + count++] = g;
+            inimg[(height-y-1)*width*NUMCOLOR + count++] = r;
 
             /* YUV를 RGB로 변환 (두 번째 픽셀) */
             r = clip((298 * y1 + 409 * v + 128) >> 8, 0, 255);  /* 두 번째 픽셀의 R 값 계산 */
             g = clip((298 * y1 - 100 * u - 208 * v + 128) >> 8, 0, 255);  /* 두 번째 픽셀의 G 값 계산 */
             b = clip((298 * y1 + 516 * u + 128) >> 8, 0, 255);  /* 두 번째 픽셀의 B 값 계산 */
 
-            /* BMP 저장을 위한 두 번째 픽셀의 RGB 값 저장 */
+            /* Frame Buffer 저장을 위한 두 번째 픽셀의 RGB 값 저장 */
             *(fbp + location++) = b;  /* 두 번째 픽셀의 파란색 값 */
             *(fbp + location++) = g;  /* 두 번째 픽셀의 초록색 값 */
             *(fbp + location++) = r;  /* 두 번째 픽셀의 빨간색 값 */
             *(fbp + location++) = a;  /* 두 번째 픽셀의 알파 값 (투명도) */
+
+            /*Bmp 이미지 데이터 저장*/
+            inimg[(height-y-1)*width*NUMCOLOR + count++] = b;
+            inimg[(height-y-1)*width*NUMCOLOR + count++] = g;
+            inimg[(height-y-1)*width*NUMCOLOR + count++] = r;
         }
         in += istride;  /* 한 라인 처리가 끝나면 다음 라인으로 이동 */
     }
+
+    /*이미지 데이터를 BMP 파일로 저장*/
+    saveImage(inimg);
 }
 
 
@@ -314,8 +381,8 @@ static void init_device(int fd)
 /* 메인 함수 */
 int main(int argc, char **argv)
 {
-    int fbfd = -1;     /* 프레임버퍼의 파일 디스크립터 */
-    int camfd = -1;    /* 카메라의 파일 디스크립터 */
+    int fbfd = -1;      /* 프레임버퍼의 파일 디스크립터 */
+    int camfd = -1;		/* 카메라의 파일 디스크립터 */
 
     /* 프레임버퍼 장치 열기 */
     fbfd = open(FBDEV, O_RDWR);
@@ -330,7 +397,6 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-
     /* 프레임버퍼를 위한 메모리 맵핑 */
     int depth_fb = vinfo.bits_per_pixel / 8.;  // 프레임버퍼의 픽셀당 바이트 수 : 4byte
     int screensize = vinfo.yres * vinfo.xres * depth_fb;  // 프레임버퍼 전체 크기 계산
@@ -342,13 +408,10 @@ int main(int argc, char **argv)
 
     /* 프레임버퍼 초기화 */
     memset(fbp, 0, screensize);
-
-
-
-
+    
     /* 카메라 장치 열기 */
     camfd = open(VIDEODEV, O_RDWR | O_NONBLOCK, 0);
-    if (-1 == camfd) {
+    if(-1 == camfd) {
         fprintf(stderr, "Cannot open '%s': %d, %s\n", VIDEODEV, errno, strerror(errno));
         return EXIT_FAILURE;
     }
@@ -377,8 +440,8 @@ int main(int argc, char **argv)
     munmap(fbp, screensize);
 
     /* 장치 닫기 */
-    if (-1 == close(camfd) && -1 == close(fbfd))
+    if(-1 == close(camfd) && -1 == close(fbfd))
         mesg_exit("close");
 
-    return EXIT_SUCCESS;
+    return EXIT_SUCCESS; 
 }

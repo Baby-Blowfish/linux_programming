@@ -110,7 +110,7 @@ printf("%d %s\n",__LINE__,__func__);
     for (int y = 0, k, total_y; y < rows; y++)  // BMP 이미지 크기와 프레임버퍼 크기를 비교하여 제한
     {
         k = (rows - y - 1) * cols * depth_bmp;  // BMP 파일에서 아래쪽 픽셀부터 읽기 위해 역순으로 처리
-        total_y = y*vinfo.xres * depth_fb;  // fb의 y축의 시작 위치 계산
+        total_y = y*vinfo.xres * depth_fb;  // 현재 y축의 시작 위치 계산
 
         for (int x = 0; x < cols; x++)  // 가로 방향에서도 프레임버퍼 크기만큼 제한
         {
