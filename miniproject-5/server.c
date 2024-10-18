@@ -30,39 +30,46 @@ void *ProcessClient(void *arg)
 	char name_msg_copy[BUFSIZE + NAME_SIZE]; // strtok()을 위한 복사본
 	char *name, *msg;
 	int retval;
-	
+	bool no_name_flag = true;
+	int total_sent = 0;
+	int to_send = len;
+
+
 	// 클라이언트 정보 얻기
 	addrlen = sizeof(clientaddr);
 	getpeername(client_sock, (struct sockaddr *)&clientaddr, &addrlen);
 	inet_ntop(AF_INET, &clientaddr.sin_addr, addr, sizeof(addr));
 
-	pthread_mutex_lock(&mutex_client);
-	// 클라이언트 정보 추가
-	clients[client_count].sock = client_sock;
-	// 클라이언트 증가
-	client_count++;
-	pthread_mutex_unlock(&mutex_client);
-	
 	//printf("%d %d \n",clients[client_count].sock,__LINE__);
 	
-	// mesg one pasing variable
-	bool mesg_pasing = true;
-
-	while (1) {
-
-
+	// 클라이언트정보 추가
+	pthread_mutex_lock(&mutex_client);
 		
+		// 클라이언트 soket fd 추가
+		clients[client_count].sock = client_sock;
+		// 클라이언트 수 증가
+		client_count++;
+	
+	pthread_mutex_unlock(&mutex_client);
 
+
+	// 클라이언트로부터 받은 데이터마 다른 클라이언트들에게 메시지 보내기
+	while (1) {
+	
 		// 데이터 받기(고정 길이)
 		retval = recv(client_sock, (char*)&len, sizeof(int), MSG_WAITALL);
+		
 		if (retval == SOCKET_ERROR) {
 			err_display_msg("recv()");
 			printf("%s %s %d\n",__FILE__,__func__,__LINE__);
 			break;
 		}
 		else if (retval == 0) // 클라이언트와 연결이 끊어졌을 경우
+		{
+			printf("Client closed the connection. \n");
 			break;
-
+		}
+		
 		memset(name_msg, 0, sizeof(name_msg));	// 메시지 초기화
 
 		// 데이터 받기(가변  길이)
@@ -73,13 +80,15 @@ void *ProcessClient(void *arg)
 			break;
 		}
 		else if (retval == 0) // 클라이언트와 연결이 끊어졌을 경우 
+		{
+			printf("Client closed the connection. \n");
 			break;
+		}
 
 
-
-
-
-		// mesg 분리		
+		
+		/* name, msg 분 리 */		
+		
 		memset(name_msg_copy, 0, sizeof(name_msg));
 
 		// 원본 문자열 보호를 위해 복사본 사용
@@ -88,45 +97,42 @@ void *ProcessClient(void *arg)
 
 		// 이름 추출
 		name = strtok(name_msg_copy, "[]");  // 대괄호로 이름 추출
-
 		if (name == NULL) {
-				printf("메시지 파싱 오류\n");
-				continue;
+			printf("이름 추출 실패\n");
+			continue;	// 포멧이 잘못되면 무시하고 루프 계속
 		}
 
+		// 메시지 추출
 		strtok(NULL, ":");           // ':' 이전까지 건너뛰기
 		msg = strtok(NULL, "");      // 메시지 추출
-
 		if (msg == NULL) {
-				printf("메시지 파싱 오류\n");
-				continue;
+			printf("메시지 추출 실패\n");
+			continue;
 		}
 
 		// 앞 공백 제거
 		while (isspace((unsigned char)*msg)) msg++; // 앞 공백 제거
 		
-		printf("이름: %s, 메시지: %s\n", name, msg);
+		//printf("이름: %s, 메시지: %s\n", name, msg);
 		
+
+		/* 클라이언트 이름 추가*/
 		pthread_mutex_lock(&mutex_client);
-		
-		if(mesg_pasing == true)
-		{
-			// 이름 저장
-			strncpy(clients[client_count-1].name, name, sizeof(clients[client_count-1].name));
-			mesg_pasing = false;
-		}
+			if(no_name_flag == true)	
+			{
+				strncpy(clients[client_count-1].name, name, NAME_SIZE);
+				no_name_flag = false;
+			}
 		pthread_mutex_unlock(&mutex_client);
 
-
-
-
-		
-
+	
 		// 받은 데이터 출력
-		name_msg[retval] = '\0';
 		printf("[TCP/%s:%d] [%d +%d byte] Received from [%s] about [%s]\n", addr, ntohs(clientaddr.sin_port),(int)sizeof(len),retval,name,name_msg);
 
-		
+	
+
+
+
 		
 		// 'q'가 입력된 경우 클라이언트 연결 종료 처리
 		if (strcmp(msg, "q") == 0)
@@ -218,7 +224,7 @@ void *ProcessClient(void *arg)
 
 			// 클라이언트를 관리하는 쓰래드 종료
 			break;	// while(1) 
-		}
+		} 정상적으로 입력되었다면 다른 클라이언트들에게 메시지 브로드캐스팅
 		else
 		{
 			pthread_mutex_lock(&mutex_client);
@@ -238,13 +244,21 @@ void *ProcessClient(void *arg)
 						break;
 					}
 
-					// 데이터 보내기(가변 길이)
-					retval = send(clients[i].sock, name_msg, len, 0);
-					if (retval == SOCKET_ERROR) {
-						err_display_msg("send()");
-						printf("%s %s %d\n",__FILE__,__func__,__LINE__);
-						break;
+					// 데이터 보내기(가변 길이) - 모든 데이터를 다 보낼 때까지 반복 전송
+					total_sent = 0;
+					to_send = len;
+					while (total_sent < len) {
+						retval = send(client_info.sock, buf + total_sent, to_send, 0);
+						if (retval == SOCKET_ERROR) {
+							err_display_msg("send()");
+							printf("%s %s %d\n",__FILE__,__func__,__LINE__);
+							return break;
+						}
+						total_sent += retval;
+						to_send -= retval;
 					}
+
+
 					printf("[TCP/%s:%d] [%d +%d byte] [%s] Send to [%s] about [%s]\n", addr, ntohs(clientaddr.sin_port),(int)sizeof(len),retval,name,clients[i].name,name_msg);
 				}
 			}		
