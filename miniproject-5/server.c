@@ -1,8 +1,6 @@
 #include "Common.h"
 
-#define SERVERPORT 9000
-#define BUFSIZE    512
-#define NAME_SIZE  20
+
 #define MAX_CLNT   20
 
 pthread_mutex_t mutex_client;	// clients와 client_count 변수에 접근하기 위한 뮤텍스
@@ -346,6 +344,7 @@ static void sigHandler(int signo)
     pthread_mutex_lock(&mutex_client);
 
     for (int i = 0; i < client_count; i++) {
+				printf("%s clients close\n", clients[i].name);
         close(clients[i].sock);
     }
 

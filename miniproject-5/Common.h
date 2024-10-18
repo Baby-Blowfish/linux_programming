@@ -7,6 +7,7 @@
 #include <pthread.h> // pthread_create(), ...
 #include <poll.h> // poll()
 #include <sys/epoll.h> // epoll()
+#include <sys/select.h>
 
 #include <stdio.h> // printf(), ...
 #include <stdlib.h> // exit(), ...
@@ -20,6 +21,12 @@
 typedef int SOCKET;
 #define SOCKET_ERROR   -1
 #define INVALID_SOCKET -1
+
+#define SERVERPORT 9000
+#define BUFSIZE    512
+#define NAME_SIZE  20
+
+char *SERVERIP = (char *)"127.0.0.1";
 
 // 소켓 함수 오류 출력 후 종료
 void err_quit(const char *msg)
