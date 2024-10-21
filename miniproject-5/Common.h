@@ -23,8 +23,22 @@ typedef int SOCKET;
 #define INVALID_SOCKET -1
 
 #define SERVERPORT 9000
-#define BUFSIZE    512
+#define BUFFER_CHUNK_SIZE 1024  // 청크 데이터 크기
+#define CHAT_SIZE  256
+#define COMMAND_SIZE 10
 #define NAME_SIZE  20
+#define HEADER_SIZE 34
+#define MESSAGE_SIZE (CHAT_SIZE - HEADER_SIZE)
+
+// 메시지를 저장할 구조체
+typedef struct {
+    char command[COMMAND_SIZE];   // 명령어 (예: "chat", "q")
+    char user[NAME_SIZE];         // 사용자 이름
+    uint32_t message_length;      // 메시지 길이 (uint32_t로 정의)
+    char message[MESSAGE_SIZE];   // 실제 메시지 내용
+} Message;
+
+
 
 char *SERVERIP = (char *)"127.0.0.1";
 

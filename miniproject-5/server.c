@@ -15,6 +15,7 @@ typedef struct {
 	char name[NAME_SIZE];
 } ClientInfo;
 
+
 ClientInfo clients[MAX_CLNT];	// 클라이언트 정보 배열
 int client_count = 0;			// 현재 클라이언트 수
 
@@ -55,21 +56,25 @@ void *ProcessClient(void *arg)
 
 	// 클라이언트로부터 받은 데이터마 다른 클라이언트들에게 메시지 보내기
 	while (1) {
-	
-		// 데이터 받기(고정 길이)
-		retval = recv(client_sock, (char*)&len, sizeof(int), MSG_WAITALL);
-		
-		if (retval == SOCKET_ERROR) {
-			err_display_msg("recv()");
-			printf("%s %s %d\n",__FILE__,__func__,__LINE__);
-			break;
+
+		// 데이터 수신
+		int total_received = 0;
+		while (total_received < sizeof(int)) {
+    	int received = recv(client_sock, (char *)&len + total_received, sizeof(int) - total_received, 0);
+			if (retval == SOCKET_ERROR) {
+				err_display_msg("recv()");
+				printf("%s %s %d\n",__FILE__,__func__,__LINE__);
+				break;
+			}
+			else if (retval == 0) // 클라이언트와 연결이 끊어졌을 경우
+			{
+				printf("Client closed the connection. \n");
+				break;
+			}
+    	total_received += received;
 		}
-		else if (retval == 0) // 클라이언트와 연결이 끊어졌을 경우
-		{
-			printf("Client closed the connection. \n");
-			break;
-		}
-		
+
+
 		memset(name_msg, 0, sizeof(name_msg));	// 메시지 초기화
 
 		// 데이터 받기(가변  길이)
@@ -328,8 +333,7 @@ int main(int argc, char *argv[])
 			addr, ntohs(clientaddr.sin_port));
 
 		// 스레드 생성
-		retval = pthread_create(&tid, NULL, ProcessClient,
-			(void *)(long long)client_sock);
+		retval = pthread_create(&tid, NULL, ProcessClient, (void *)(long long)client_sock);
 		if (retval != 0) { close(client_sock);}
 
 		pthread_detach(tid);

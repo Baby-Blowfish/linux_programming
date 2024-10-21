@@ -119,6 +119,7 @@ static void process_image(const void *p)
         for (j = 0, x = 0; j < vinfo.xres*2; j += 4, x += 2) {
             if (j >= width*2) {  /* 빈 공간을 처리 */
                 location++;
+                location++;
                 continue;
             }
 

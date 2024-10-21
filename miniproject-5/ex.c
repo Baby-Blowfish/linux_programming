@@ -78,40 +78,30 @@ if (strlen(argv[1]) >= NAME_SIZE)
 
 
 
-	uint32_t len;  // 고정 길이 데이터(가변길이 데이터의 크기를 나타냄)
 
-	Message *chat_buf = (Message *)malloc(CHAT_SIZE);  // 큰 데이터를 받기 위한 버퍼 할당
-	if (chat_buf == NULL) {
-		err_quit("chat_buf Memory allocation error");
-	}
-	memset(chat_buf, 0, BUFFER_CHUNK_SIZE);
-
-	char *formatted_msg = (char *)malloc(BUFFER_CHUNK_SIZE);  // 큰 데이터를 받기 위한 버퍼 할당
-	if (formatted_msg == NULL) {
-		err_quit("formatted_msg Memory allocation error");
-	}
-	memset(formatted_msg, 0, BUFFER_CHUNK_SIZE);
-
-	strncpy(chat_buf->command, "name", COMMAND_SIZE - 1);  // command 필드에 값 복사
-	strncpy(chat_buf->user, client_info->name, NAME_SIZE - 1);           // user 필드에 값 복사
-	chat_buf->message_length = len;              // message_length 필드에 값 할당
-	strncpy(chat_buf->message, "this is my name", MESSAGE_SIZE - 1); 
-
-	// 메시지를 포맷
-	format_message(chat_buf, formatted_msg);
-	len = (uint32_t)strlen(formatted_msg);
-
-	// 고정 길이 데이터 전송
-	if (send_fixed_length_data(client_info->sock, len, 5) == -1) {
-		printf("Failed to send fixed length data.\n");
-		return(1);
+	// 서버에 이름 등록
+	char *buf = (char*)malloc(CHAT_SIZE*sizeof(char));  //
+	if (buf == NULL) {
+			perror("Memory allocation error");
+			exit(1);
 	}
 
-	// 가변 길이 데이터 전송
-	if (send_variable_length_data(client_info->sock, formatted_msg, len, 5) == -1) {
-		printf("Failed to send variable length data.\n");
-		return(1);
+	// 메시지를 포맷: [name] : <message>
+  format_message("name", argv[1], "Register my name", buf);
+
+	// 고정 길이 데이터 전송 (메시지 길이 전송)
+	if (send_fixed_length_data(client_info->sock, (uint32_t)strlen(buf), 5) == -1) {
+			printf("Failed to send fixed length data.\n");
+			return;
 	}
+
+	// 가변 길이 데이터 전송 (메시지 본문 전송)
+	if (send_variable_length_data(client_info->sock, buf, (uint32_t)strlen(buf), 5) == -1) {
+			printf("Failed to send variable length data.\n");
+			return;
+	}
+
+	free(buf);
 
 	pthread_t chat_tid;
 	pthread_t video_tid;
@@ -351,62 +341,6 @@ int receive_variable_length(SOCKET sock, int data_size) {
 }
 
 
-
-
-
-
-
-// 이름 변경 기능을 구현하는 함수
-int change_name(const char *new_name, int sock, const char *current_name) {
-    uint32_t len;  // 고정 길이 데이터(가변 길이 데이터의 크기를 나타냄)
-
-    // Message 구조체 생성 및 초기화
-    Message *chat_buf = (Message *)malloc(CHAT_SIZE);  
-    if (chat_buf == NULL) {
-        err_quit("chat_buf Memory allocation error");
-    }
-    memset(chat_buf, 0, CHAT_SIZE);
-
-    // 포맷된 메시지를 저장할 버퍼
-    char *formatted_msg = (char *)malloc(BUFFER_CHUNK_SIZE);  
-    if (formatted_msg == NULL) {
-        free(chat_buf);
-        err_quit("formatted_msg Memory allocation error");
-    }
-    memset(formatted_msg, 0, BUFFER_CHUNK_SIZE);
-
-    // Message 구조체에 데이터 할당
-    strncpy(chat_buf->command, "name", COMMAND_SIZE - 1);         // command 필드에 값 복사
-    strncpy(chat_buf->user, current_name, NAME_SIZE - 1);         // 현재 사용자 이름을 user 필드에 복사
-    chat_buf->message_length = strlen(new_name);                  // 변경할 이름의 길이를 message_length에 할당
-    strncpy(chat_buf->message, new_name, MESSAGE_SIZE - 1);       // 변경할 이름을 message 필드에 복사
-
-    // 메시지를 포맷
-    format_message(chat_buf, formatted_msg);
-    len = (uint32_t)strlen(formatted_msg);
-
-    // 고정 길이 데이터 전송
-    if (send_fixed_length_data(sock, len, 5) == -1) {
-        printf("Failed to send fixed length data.\n");
-        free(chat_buf);
-        free(formatted_msg);
-        return -1;
-    }
-
-    // 가변 길이 데이터 전송
-    if (send_variable_length_data(sock, formatted_msg, len, 5) == -1) {
-        printf("Failed to send variable length data.\n");
-        free(chat_buf);
-        free(formatted_msg);
-        return -1;
-    }
-
-    // 메모리 해제
-    free(chat_buf);
-    free(formatted_msg);
-
-    return 0;
-}
 
 void *ChatThread(void *arg)
 {
