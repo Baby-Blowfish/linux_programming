@@ -9,13 +9,6 @@ pthread_mutex_t mutex_client;	// clients와 client_count 변수에 접근하기 
 static void sigHandler(int signo);
 SOCKET listen_sock;
 
-// 클라이언트 정보를 저장할 구조체
-typedef struct {
-	SOCKET sock;
-	char name[NAME_SIZE];
-} ClientInfo;
-
-
 ClientInfo clients[MAX_CLNT];	// 클라이언트 정보 배열
 int client_count = 0;			// 현재 클라이언트 수
 

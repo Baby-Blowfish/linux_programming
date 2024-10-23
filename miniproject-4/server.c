@@ -335,6 +335,7 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
+
 static void sigHandler(int signo)
 {
 	if(signo == SIGINT)
@@ -346,6 +347,7 @@ static void sigHandler(int signo)
     pthread_mutex_lock(&mutex_client);
 
     for (int i = 0; i < client_count; i++) {
+				printf("%s clients close\n", clients[i].name);
         close(clients[i].sock);
     }
 

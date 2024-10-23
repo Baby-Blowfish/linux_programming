@@ -1,3 +1,6 @@
+
+
+
 #include <sys/types.h> // basic type definitions
 #include <sys/socket.h> // socket(), AF_INET, ...
 #include <arpa/inet.h> // htons(), htonl(), ...
@@ -27,7 +30,7 @@ typedef int SOCKET;
 #define CHAT_SIZE  256
 #define COMMAND_SIZE 10
 #define NAME_SIZE  20
-#define HEADER_SIZE 34
+#define HEADER_SIZE (COMMAND_SIZE + NAME_SIZE + sizeof(uint32_t))
 #define MESSAGE_SIZE (CHAT_SIZE - HEADER_SIZE)
 
 // 메시지를 저장할 구조체
@@ -38,7 +41,11 @@ typedef struct {
     char message[MESSAGE_SIZE];   // 실제 메시지 내용
 } Message;
 
-
+// 클라이언트 정보를 저장할 구조체
+typedef struct {
+	SOCKET sock;
+	char name[NAME_SIZE];
+} ClientInfo;
 
 char *SERVERIP = (char *)"127.0.0.1";
 
