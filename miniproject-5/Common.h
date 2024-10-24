@@ -1,5 +1,5 @@
-
-
+#ifndef __COMMON_H__  // 헤더 파일 중복 포함을 방지하기 위한 매크로 정의 시작
+#define __COMMON_H__
 
 #include <sys/types.h> // basic type definitions
 #include <sys/socket.h> // socket(), AF_INET, ...
@@ -47,26 +47,16 @@ typedef struct {
 	char name[NAME_SIZE];
 } ClientInfo;
 
-char *SERVERIP = (char *)"127.0.0.1";
+ void err_quit(const char *msg);
+ void err_display_msg(const char *msg);
+ void err_display_code(int errcode);
+ void format_message(const Message *msg, char *formatted_message);
+ void parse_message(char *data, Message *msg);
+ int send_fixed_length_data(SOCKET sock	, uint32_t data, int max_retries) ;	// 고정 길이 데이터 송신 
+ int send_variable_length_data(SOCKET sock, const char *buf, int len, int max_retries);	// 가변 길이 데이터 송신 
+ int recv_fixed_length_data(SOCKET sock, uint32_t *data, int max_retries);	// 고정 길이 데이터 수신 
+ int recv_variable_length_data(SOCKET sock, char *buf, int len, int max_retries); // 가변 길이 데이터 수신 함수
+ int send_chat_message(SOCKET sock, const char *username, const char * message, int max_retries);
+ int recv_chat_message(SOCKET sock, Message *msg, int max_retries);
 
-// 소켓 함수 오류 출력 후 종료
-void err_quit(const char *msg)
-{
-	char *msgbuf = strerror(errno);
-	printf("[%s] %s\n", msg, msgbuf);
-	exit(1);
-}
-
-// 소켓 함수 오류 출력
-void err_display_msg(const char *msg)
-{
-	char *msgbuf = strerror(errno);
-	printf("[%s] %s\n", msg, msgbuf);
-}
-
-// 소켓 함수 오류 출력
-void err_display_code(int errcode)
-{
-    char *msgbuf = strerror(errcode);
-    printf("[오류] %s\n", msgbuf);
-}
+#endif  // 헤더 파일 중복 포함 방지를 위한 매크로 정의 끝
