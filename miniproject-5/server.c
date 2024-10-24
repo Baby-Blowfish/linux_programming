@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
 
 
 		// 스레드 생성
-		retval = pthread_create(&tid, NULL, ProcessClient, (void *)(long long)client_sock);	
+		retval = pthread_create(&tid, NULL, ProcessClient, (void *)&client_sock);	
 
 
 		if (retval != 0) { close(client_sock);}
@@ -97,27 +97,16 @@ printf("%s %s %d\n",__FILE__,__FUNCTION__,__LINE__);
 // 클라이언트와 데이터 통신
 void *ProcessClient(void *arg)
 {
-		int retval;
-	printf("%s %s %d\n",__FILE__,__FUNCTION__,__LINE__);
-	SOCKET client_sock = (SOCKET)(long long)arg;
-	struct sockaddr_in clientaddr;
-	char addr[INET_ADDRSTRLEN];
-	socklen_t addrlen;
-
-	// 클라이언트 정보 얻기
-	addrlen = sizeof(clientaddr);
-	getpeername(client_sock, (struct sockaddr *)&clientaddr, &addrlen);
-	inet_ntop(AF_INET, &clientaddr.sin_addr, addr, sizeof(addr));
-
-	//printf("%d %d \n",clients[client_count].sock,__LINE__);
-
-	ClientInfo *client_info = (ClientInfo *)arg;
+	int retval;
+	
+	ClientInfo *client_info = (ClientInfo *)malloc(sizeof(ClientInfo));
 	if (client_info == NULL) {
+		free(client_info);
 		err_quit("client_info Memory allocation error");
 	}
 	memset(client_info, 0, sizeof(ClientInfo));
 
-	printf("%s %s %d",__FILE__,__FUNCTION__,__LINE__);
+	client_info->sock = *((SOCKET*)arg);
 
 	Message *msg = (Message *)malloc(CHAT_SIZE);
 	if (msg == NULL) {
@@ -125,21 +114,29 @@ void *ProcessClient(void *arg)
 	}
 	memset(msg, 0, CHAT_SIZE);
 
-	printf("%s %s %d",__FILE__,__FUNCTION__,__LINE__);
+	struct sockaddr_in clientaddr;
+	char addr[INET_ADDRSTRLEN];
+	socklen_t addrlen;
+
+	// 클라이언트 정보 얻기
+	addrlen = sizeof(clientaddr);
+	getpeername(client_info->sock, (struct sockaddr *)&clientaddr, &addrlen);
+	inet_ntop(AF_INET, &clientaddr.sin_addr, addr, sizeof(addr));
+
+	
 
 	// 클라이언트정보 추가
 	pthread_mutex_lock(&mutex_client);
 
 		// 클라이언트 soket fd 추가
-		clients[client_count].sock = client_sock;
-
+		clients[client_count].sock = client_info->sock;
+	
 		// 클라이언트 이름 추가
-		if(recv_chat_message(client_sock, msg,5) < 0)
+		if(recv_chat_message(client_info->sock, msg,5) < 0)
 			err_display_msg("recv_chat_message()");
 		strncpy(clients[client_count].name, msg->user, NAME_SIZE - 1);
 		strncpy(client_info->name, msg->user, NAME_SIZE - 1);
-		client_info->sock = client_sock;
-		printf("Received message:\nCommand: %s\nUser: %s\nMessage: %s\n", msg->command, msg->user, msg->message);
+		printf("%s %s\n", msg->user, msg->message);
 
 		// 클라이언트 수 증가
 		client_count++;
@@ -154,7 +151,7 @@ void *ProcessClient(void *arg)
 
 		// fd_set 초기화 및 소켓, 표준 입력 설정
 		FD_ZERO(&readfds);
-		FD_SET(client_sock, &readfds);  // 서버 소켓 감시
+		FD_SET(client_info->sock, &readfds);  // 서버 소켓 감시
 		FD_SET(STDIN_FILENO, &readfds);  // 표준 입력 감시
 
 		struct timeval timeout;
@@ -162,39 +159,44 @@ void *ProcessClient(void *arg)
 		timeout.tv_usec = 0;
 
 		// select() 호출: 서버 소켓 또는 표준 입력에서 읽을 수 있을 때까지 대기
-		retval = select(client_sock + 1, &readfds, NULL, NULL, &timeout);
+		retval = select(client_info->sock + 1, &readfds, NULL, NULL, &timeout);
 		if (retval == -1) {
 			perror("select() error");
 			break;
 		}
 
-		if (FD_ISSET(client_sock, &readfds)) {
+		if (FD_ISSET(client_info->sock, &readfds)) {
 
 			memset(msg, 0, CHAT_SIZE);
 
-			if(recv_chat_message(client_sock, msg, 5) < 0)
+			if(recv_chat_message(client_info->sock, msg, 5) < 0)
 			{
 				client_close(client_info, msg); 
 				break;	// while(1) 
 			}
 
 			printf("---------------------------------------------------------\n");
-			printf("Command: %s\nSend User: %s\nRecv User: %s\nMessage: %s\n", msg->command, client_info->name, msg->user, msg->message);
+			printf("Command: %s\n%s Send to %s\nMessage: %s\n", msg->command, client_info->name, msg->user, msg->message);
 			printf("---------------------------------------------------------\n");
 
-
+ 
+						
 			// 'q'가 입력된 경우 클라이언트 연결 종료 처리
-			if (!strncmp(msg->command, "q",1))
+			if (!strncmp(msg->message, "q",1))
 			{
 				client_close(client_info,msg); 
 				break;	// while(1) 
-			} 
-			else	// 여러 기능 수행
-			{
-				if(!strncmp(msg->command,"name",5)) change_name(client_info,msg);	// 이름 변경
-				else if(!strncmp(msg->command,"chat",5)) chat_broadcast(client_info, msg);
-				else if(!strncmp(msg->command,"stream",7));
 			}
+			else
+			{
+				// 여러 기능 수행
+				if(!strncmp(msg->command,"name",4)) change_name(client_info,msg);	// 이름 변경
+				else if(!strncmp(msg->command,"chat",4)) chat_broadcast(client_info, msg);
+				else if(!strncmp(msg->command,"stream",6));
+					
+			}
+
+
 
 
 		}
@@ -206,7 +208,7 @@ void *ProcessClient(void *arg)
 
 	sleep(1);
 	// 소켓 닫기
-	close(client_sock);
+	close(client_info->sock);
 	printf("[TCP 서버] 클라이언트 종료: IP 주소=%s, 포트 번호=%d\n",addr, ntohs(clientaddr.sin_port));
 	pthread_exit((void*)0);
 
@@ -219,16 +221,16 @@ static void sigHandler(int signo)
 	{
 		printf("SIGINT is catched : %d\n",signo);
 		// 클라이언트 소켓들 닫기
-    pthread_mutex_lock(&mutex_client);
+		pthread_mutex_lock(&mutex_client);
 
-    for (int i = 0; i < client_count; i++) {
-				printf("%s clients close\n", clients[i].name);
-        close(clients[i].sock);
-    }
+		for (int i = 0; i < client_count; i++) {
+			printf("%s clients close\n", clients[i].name);
+			close(clients[i].sock);
+		}
 
-    // 서버 소켓 닫기
-    close(listen_sock);
-    
+		// 서버 소켓 닫기
+		close(listen_sock);
+		
 		pthread_mutex_unlock(&mutex_client);
 
 
@@ -242,6 +244,8 @@ static void sigHandler(int signo)
 
 }
 
+
+
 // 이름 변경 기능을 구현하는 함수
 int change_name(ClientInfo * info, Message *msg) {
 	
@@ -252,7 +256,11 @@ int change_name(ClientInfo * info, Message *msg) {
 		if(clients[i].sock == info->sock)
 		{
 			strncpy(clients[i].name, msg->user, NAME_SIZE - 1);
-			printf("Received message:\nCommand: %s\nUser: %s\nMessage: %s\n", msg->command, msg->user, msg->message);
+			printf("---------------------------------------------------------\n");
+			printf("Changed name : %s -> %s\n",info->name,msg->user);
+			printf("---------------------------------------------------------\n");
+			strncpy(info->name, msg->user, NAME_SIZE - 1);	
+
 		}
 	}
 
@@ -262,15 +270,16 @@ int change_name(ClientInfo * info, Message *msg) {
 }
 
 
+
 int chat_broadcast(ClientInfo * info, Message *msg)
 {
 	pthread_mutex_lock(&mutex_client);
 
-	if(!strncmp(msg->user,"all",5)) // 연결된 클라이언트 제외 다른 모든 클라이언트에게 메시지 브로드캐스트
+	if(!strncmp(msg->user,"all",3)) // 연결된 클라이언트 제외 다른 모든 클라이언트에게 메시지 브로드캐스트
 	{
 		for( int i =  0; i < client_count; i++)	
 		{
-			if(clients[i].sock != info->sock)	send_chat_message(clients[i].sock, msg->user, msg->message, 5);
+			if(clients[i].sock != info->sock)	send_chat_message(clients[i].sock, info->name, msg->message, 5);
 		}	
 	}
 
@@ -286,8 +295,8 @@ void client_close(ClientInfo * info, Message *msg)
 	// 클라이언트들에게 종료 메시지 전송
 	for( int i =  0; i < client_count; i++)	
 	{
-		if(clients[i].sock != info->sock) send_chat_message(clients[i].sock, msg->user, "Closed chat", 5);	// 요청 받은 클라이언트가 아닌 다른 클라이언트들에게 정보 알림
-		else send_chat_message(info->sock, msg->user, "q", 5);	// 요청 받은 클라이언트에게 종료하라고 알림
+		if(clients[i].sock != info->sock) send_chat_message(clients[i].sock, info->name, "Closed chat", 5);	// 요청 받은 클라이언트가 아닌 다른 클라이언트들에게 정보 알림
+		else send_chat_message(info->sock, info->name, "q", 5);	// 요청 받은 클라이언트에게 종료하라고 알림
 	}
 
 	

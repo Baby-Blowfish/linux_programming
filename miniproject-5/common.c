@@ -210,10 +210,12 @@ int send_chat_message(SOCKET sock, const char *username, const char * message, i
 
 
     // Message 구조체에 값 할당
-    strncpy(chat_buf->command, "chat", COMMAND_SIZE - 1);
-    strncpy(chat_buf->user, username, NAME_SIZE - 1);
-    strncpy(chat_buf->message, message, NAME_SIZE - 1);
+    strncpy(chat_buf->command, "chat", strlen("chat"));
+    strncpy(chat_buf->user, username, strlen(username));
+    strncpy(chat_buf->message, message, strlen(message));
     chat_buf->message_length = len;
+
+	printf("%s\n",chat_buf->message);
 
     // 메시지를 포맷
     format_message(chat_buf, formatted_msg);
@@ -235,12 +237,6 @@ int send_chat_message(SOCKET sock, const char *username, const char * message, i
         return -1;
     }
 
-    // "q"가 입력되면 소켓 종료
-    if (!strncmp(chat_buf->message, "q", 1)) {
-        free(chat_buf);
-        free(formatted_msg);
-        return 1;  // "q" 입력 시 종료 신호 반환
-    }
 
     // 메모리 해제
     free(chat_buf);
