@@ -134,10 +134,13 @@ void *ProcessClient(void *arg)
 		// 클라이언트 이름 추가
 		if(recv_chat_message(client_info->sock, msg,5) < 0)
 			err_display_msg("recv_chat_message()");
-		strncpy(clients[client_count].name, msg->user, NAME_SIZE - 1);
-		strncpy(client_info->name, msg->user, NAME_SIZE - 1);
-		printf("%s %s\n", msg->user, msg->message);
-
+		if(!strncmp(msg->command,"name",4))
+		{
+			strncpy(clients[client_count].name, msg->user, strlen(msg->user)+1);
+			strncpy(client_info->name, msg->user, strlen(msg->user)+1);
+			printf("%s %s\n", msg->user, msg->message);
+		}
+		
 		// 클라이언트 수 증가
 		client_count++;
 

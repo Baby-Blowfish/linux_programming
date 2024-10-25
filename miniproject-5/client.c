@@ -40,8 +40,7 @@ int main(int argc, char *argv[])
 
 		// 이름을 안전하게 복사
 	memset(client_info->name, 0, NAME_SIZE);  // 이름 배열을 0으로 초기화 (널 종결자 포함)
-	strncpy(client_info->name, argv[1], strlen(argv[1]));  // 이름 크기만큼 초기화,  strlen()은 '\0'이 마지막에 있어야 올바른 동작(argv[1] 문자열로 받아옴)
-	client_info->name[NAME_SIZE - 1] = '\0';  // 안전한 널 종결자 추가
+	strncpy(client_info->name, argv[1], strlen(argv[1])+1);  // 이름 크기만큼 초기화,  strlen()은 '\0'이 마지막에 있어야 올바른 동작(argv[1] 문자열로 받아옴), strncpy()는 3번쨰 인수 만큼만 문자열 안에 복사하지 \0를 따로 붙여주지는 않는다.
 
 	// 소켓 생성
 	client_info->sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -77,10 +76,10 @@ int main(int argc, char *argv[])
 	if (retval != 0) { close(client_info->sock); free(client_info); err_quit("pthread_create()");};
 	pthread_join(socket_tid, NULL);  // 채팅 스레드가 끝날 때까지 대기
 
-	while(1)
-	{
-		// 메인 함수 동작	
-	}
+	// while(1)
+	// {
+	// 	// 메인 함수 동작	
+	// }
 
 	free(client_info); // 동적 할당 해제
 	// 소켓 닫기
@@ -103,7 +102,7 @@ void show_main_menu() {
 
 
 // 이름 변경 기능을 구현하는 함수
-int change_name(SOCKET sock, const char *new_name, const char *mmessage, int max_retries) {
+int change_name(SOCKET sock, const char *new_name, const char *message, int max_retries) {
     uint32_t len;  // 고정 길이 데이터(가변 길이 데이터의 크기를 나타냄)
 
     // Message 구조체 생성 및 초기화
@@ -126,10 +125,10 @@ int change_name(SOCKET sock, const char *new_name, const char *mmessage, int max
     memset(formatted_msg, 0, BUFFER_CHUNK_SIZE);
 
     // Message 구조체에 데이터 할당
-    strncpy(chat_buf->command, "name", COMMAND_SIZE - 1);         // command 필드에 값 복사
-    strncpy(chat_buf->user, new_name, NAME_SIZE - 1);         // 현재 사용자 이름을 user 필드에 복사
-    chat_buf->message_length = strlen(mmessage);                  // 변경할 이름의 길이를 message_length에 할당
-    strncpy(chat_buf->message, mmessage, MESSAGE_SIZE - 1);       // 변경할 이름을 message 필드에 복사
+    strncpy(chat_buf->command, "name", 4);         // command 필드에 값 복사
+    strncpy(chat_buf->user, new_name, strlen(new_name));         // 현재 사용자 이름을 user 필드에 복사
+    chat_buf->message_length = strlen(message);                  // 변경할 이름의 길이를 message_length에 할당
+    strncpy(chat_buf->message, message, strlen(message));       // 변경할 이름을 message 필드에 복사
 
     // 메시지를 포맷
     format_message(chat_buf, formatted_msg);

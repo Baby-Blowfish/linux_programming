@@ -38,8 +38,8 @@ void parse_message(char *data, Message *msg) {
     if (temp != NULL) {
         // 앞뒤 공백 제거 및 값 복사
         while (*temp == ' ') temp++;
-        strncpy(msg->command, temp, COMMAND_SIZE - 1);
-        msg->command[COMMAND_SIZE - 1] = '\0';
+        strncpy(msg->command, temp, strlen(temp));
+        msg->command[strlen(temp) - 1] = '\0';
     }
 
     // 두 번째 필드: user
@@ -47,21 +47,23 @@ void parse_message(char *data, Message *msg) {
     if (temp != NULL) {
         // 앞뒤 공백 제거 및 값 복사
         while (*temp == ' ') temp++;
-        strncpy(msg->user, temp, NAME_SIZE - 1);
-        msg->user[NAME_SIZE - 1] = '\0';
+        strncpy(msg->user, temp, strlen(temp));
+        msg->user[strlen(temp) - 1] = '\0';
     }
 
     // 세 번째 필드: message_length
     temp = strtok(NULL, "|");
     if (temp != NULL) {
+        while (*temp == ' ') temp++;
         msg->message_length = atoi(temp);  // 문자열을 정수로 변환
     }
 
     // 네 번째 필드: message
     temp = strtok(NULL, "|");
     if (temp != NULL) {
-        strncpy(msg->message, temp, MESSAGE_SIZE - 1);
-        msg->message[MESSAGE_SIZE - 1] = '\0';  // 널 문자 추가
+         while (*temp == ' ') temp++;
+        strncpy(msg->message, temp, strlen(temp));
+        msg->message[strlen(temp)] = '\0';  // 널 문자 추가
     }
 }
 
