@@ -1,5 +1,20 @@
 #include "Common.h"
 
+/* 에러 발생 시 메시지 출력 후 종료하는 함수 */
+void mesg_exit(const char *s)
+{
+    fprintf(stderr, "%s error %d, %s\n", s, errno, strerror(errno));
+    exit(EXIT_FAILURE);
+}
+
+/* ioctl() 호출을 안전하게 수행하는 함수 */
+int xioctl(int fd, int request, void *arg)
+{
+    int r;
+    do r = ioctl(fd, request, arg); while (-1 == r && EINTR == errno);  /* EINTR 오류 시 재시도 */
+    return r;
+}
+
 
 // 소켓 함수 오류 출력 후 종료
 void err_quit(const char *msg)
@@ -210,11 +225,12 @@ int send_chat_message(SOCKET sock, const char *username, const char * message, i
     }
     memset(formatted_msg, 0, BUFFER_CHUNK_SIZE);
 
+    len = strlen(message);
 
     // Message 구조체에 값 할당
-    strncpy(chat_buf->command, "chat", strlen("chat"));
+    strcpy(chat_buf->command, "chat");
     strncpy(chat_buf->user, username, strlen(username));
-    strncpy(chat_buf->message, message, strlen(message));
+    strncpy(chat_buf->message, message, len);
     chat_buf->message_length = len;
 
 
