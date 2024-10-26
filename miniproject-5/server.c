@@ -73,24 +73,20 @@ int main(int argc, char *argv[])
 
 		// 스레드 생성
 		retval = pthread_create(&tid, NULL, ProcessClient, (void *)&client_sock);	
-
-
 		if (retval != 0) { close(client_sock);}
-		printf("%s %s %d\n",__FILE__,__FUNCTION__,__LINE__);
 
 		pthread_detach(tid);
 	}
-	printf("%s %s %d\n",__FILE__,__FUNCTION__,__LINE__);
+
 	// 뮤텍스 삭제
 	pthread_mutex_destroy(&mutex_client);
 
-	for (int i = 0; i < client_count; i++) {
+	for (int i = 0; i < client_count; i++) 
 			close(clients[i].sock); // 모든 클라이언트 소켓 닫기
-	}
-printf("%s %s %d\n",__FILE__,__FUNCTION__,__LINE__);
+
 	// 서버 소켓 닫기
 	close(listen_sock);
-	printf("%s %s %d\n",__FILE__,__FUNCTION__,__LINE__);
+
 	return 0;
 }
 
