@@ -27,7 +27,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    init_frambuffer(fbfd);
+    if(init_frambuffer(fbfd) < 0) return EXIT_FAILURE;
 
 
     /* 카메라 장치 열기 */
@@ -81,7 +81,7 @@ static void process_image(const void *p)
     unsigned char* in = (unsigned char*)p;  /* 캡처된 비디오 데이터 포인터 (YUYV 형식) */
     int width = WIDTH;                      /* 비디오 데이터의 너비 (픽셀 수) */
     int height = HEIGHT;                    /* 비디오 데이터의 높이 (픽셀 수) */
-    int istride = WIDTH * 2;                /* 한 라인의 데이터 크기 (YUYV 형식은 픽셀당 2바이트 사용) */
+    int istride = width * 2;                /* 한 라인의 데이터 크기 (YUYV 형식은 픽셀당 2바이트 사용) */
     int x, y, j;                            /* 반복문에서 사용할 변수 */
     int y0, u, y1, v, r, g, b, a = 0xff, depth_fb = vinfo.bits_per_pixel/8;    /* YUYV 데이터를 분리한 후 RGBA 변환에 사용할 변수 */
     long location = 0;                      /* 프레임버퍼에서 현재 위치를 가리킬 인덱스 */
@@ -97,7 +97,7 @@ static void process_image(const void *p)
 
 
             /* YUYV 데이터에서 Y0, U, Y1, V 성분을 분리 */
-            y0 = in[j];              /* 첫 번째 픽셀의 밝기 값 (Y0) */
+            y0 = in[j];              /* 첫 번째 픽셀의 밝기 값 (Y0) */  
             u = in[j + 1] - 128;     /* 색차 성분 U, 중앙값 128을 기준으로 보정 */
             y1 = in[j+ 2];          /* 두 번째 픽셀의 밝기 값 (Y1) */
             v = in[j + 3] - 128;     /* 색차 성분 V, 중앙값 128을 기준으로 보정 */

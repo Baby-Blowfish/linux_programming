@@ -6,7 +6,7 @@
 static void sigHandler(int signo);
 void *ProcessClient(void *arg);
 int change_name(ClientInfo *info, Message *chat_buf);
-void chat_broadcast(ClientInfo *info, Message *msg);
+int chat_broadcast(ClientInfo *info, Message *msg);
 void client_close(ClientInfo *info, Message *msg);
 
 #define MAX_CLNT   20
@@ -270,7 +270,7 @@ int change_name(ClientInfo * info, Message *msg) {
 
 
 
-void chat_broadcast(ClientInfo * info, Message *msg)
+int chat_broadcast(ClientInfo * info, Message *msg)
 {
 	pthread_mutex_lock(&mutex_client);
 

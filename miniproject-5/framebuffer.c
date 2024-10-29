@@ -26,4 +26,6 @@ int init_frambuffer(int fd)
     /* 프레임버퍼 초기화 */
     memset(fbp, 0, screensize_Frambuffer);
 
+    return 0;
+
 }
