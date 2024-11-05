@@ -48,7 +48,7 @@ int main(int argc, char**argv)
 	
 
 	// 이전의 값을 백업
-	old_vinfo = vinfo;
+	old_vinfo = vi 
 	
 	// 프레임 버퍼에 새로운 해상도(800x600)을 설정
 	vinfo.xres = 800;
