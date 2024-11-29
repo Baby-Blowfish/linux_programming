@@ -58,7 +58,6 @@ extern inline int clip(int value, int min, int max)
 static void process_image(const void *p)
 {
     unsigned char* in = (unsigned char*)p;  /* 캡처된 비디오 데이터 포인터 (YUYV 형식) */
-    int width = WIDTH;                      /* 비디오 데이터의 너비 (픽셀 수) */
     int height = HEIGHT;                    /* 비디오 데이터의 높이 (픽셀 수) */
     int istride = WIDTH * 2;                /* 한 라인의 데이터 크기 (YUYV 형식은 픽셀당 2바이트 사용) */
     int x, y, j;                            /* 반복문에서 사용할 변수 */

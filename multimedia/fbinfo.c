@@ -27,14 +27,14 @@ int main(int argc, char**argv)
 		perror("Error reading fixed information");
 		return -1;
 	}
-	
+
 	// 현재 프레임 버퍼에 대한 가상 화면 정보를 얻어온다
 	if(ioctl(fbfd, FBIOGET_VSCREENINFO, &vinfo) < 0 )
 	{
 		perror("Error reading fixed information");
 		return -1;
 	}
-	
+
 	// 현재 프레임 버퍼에 대한 정보를 출력한다.
 	printf("Resolution : %dx%d, %dbpp\n",vinfo.xres,vinfo.yres,vinfo.bits_per_pixel);
 	printf("Virtual Resolution : %dx%d\n",vinfo.xres_virtual,vinfo.yres_virtual);
@@ -45,14 +45,14 @@ int main(int argc, char**argv)
 	printf("Green: offset = %d, length = %d\n", vinfo.green.offset, vinfo.green.length);
 	printf("Blue: offset = %d, length = %d\n", vinfo.blue.offset, vinfo.blue.length);
 	printf("Alpha (transparency): offset = %d, length = %d\n", vinfo.transp.offset, vinfo.transp.length);
-	
+
 
 	// 이전의 값을 백업
-	old_vinfo = vi 
-	
+	old_vinfo = vinfo;
+
 	// 프레임 버퍼에 새로운 해상도(800x600)을 설정
-	vinfo.xres = 800;
-	vinfo.yres = 600;
+	//vinfo.xres = 800;
+	//vinfo.yres = 600;
 
 	if(ioctl(fbfd, FBIOPUT_VSCREENINFO, &vinfo)<0)
 	{

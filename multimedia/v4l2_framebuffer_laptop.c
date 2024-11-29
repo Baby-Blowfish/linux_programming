@@ -60,7 +60,7 @@ static void process_image(const void *p)
     unsigned char* in = (unsigned char*)p;  /* 캡처된 비디오 데이터 포인터 (YUYV 형식) */
     int width = WIDTH;                      /* 비디오 데이터의 너비 (픽셀 수) */
     int height = HEIGHT;                    /* 비디오 데이터의 높이 (픽셀 수) */
-    int istride = WIDTH * 2;                /* 한 라인의 데이터 크기 (YUYV 형식은 픽셀당 2바이트 사용) */
+    int istride = WIDTH*2;                /* 한 라인의 데이터 크기 (YUYV 형식은 픽셀당 2바이트 사용) */
     int x, y, j;                            /* 반복문에서 사용할 변수 */
     int y0, u, y1, v, r, g, b, a = 0xff, depth_fb = vinfo.bits_per_pixel/8;    /* YUYV 데이터를 분리한 후 RGBA 변환에 사용할 변수 */
     long location = 0;                      /* 프레임버퍼에서 현재 위치를 가리킬 인덱스 */
@@ -116,7 +116,7 @@ static int read_frame(int fd)
     memset(&buf, 0, sizeof(buf));  /* buf 구조체를 0으로 초기화 (안전한 사용을 위해) */
     buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;  /* 버퍼 타입을 비디오 캡처로 설정 */
     buf.memory = V4L2_MEMORY_MMAP;           /* 메모리 매핑 방식으로 설정 (MMAP 사용) */
-    
+
     /* 큐에서 버퍼를 제거 (VIDIOC_DQBUF 요청: 비디오 장치에서 한 프레임의 데이터를 가져옴) */
     if (-1 == xioctl(fd, VIDIOC_DQBUF, &buf)) {  /* VIDIOC_DQBUF 시스템 호출: 큐에서 버퍼를 반환받음 */
         switch (errno) {  /* 시스템 호출 오류 시, errno를 통해 오류 유형을 확인 */
@@ -154,7 +154,7 @@ static void mainloop(int fd)
             tv.tv_usec = 0;  /* 마이크로초 단위 타임아웃 설정 (0마이크로초) */
 
             /* select() 호출: 파일 디스크립터에서 이벤트가 발생할 때까지 대기 */
-            int r = select(fd + 1, &fds, NULL, NULL, &tv);  
+            int r = select(fd + 1, &fds, NULL, NULL, &tv);
             /* select()는 파일 디스크립터에서 읽기 가능 상태가 될 때까지 대기 (또는 타임아웃) */
             if (-1 == r) {  /* select() 호출이 실패한 경우 */
                 if (EINTR == errno) continue;  /* 인터럽트로 인해 중단된 경우, 루프를 재시작 */
@@ -185,7 +185,7 @@ static void start_capturing(int fd)
         if (-1 == xioctl(fd, VIDIOC_QBUF, &buf))
             mesg_exit("VIDIOC_QBUF");
     }
-    
+
     enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     /* 스트리밍 시작 */
     if (-1 == xioctl(fd, VIDIOC_STREAMON, &type))
@@ -238,7 +238,7 @@ static void init_mmap(int fd)
             mesg_exit("VIDIOC_QUERYBUF");  /* 버퍼 조회 실패 시 오류 처리 */
 
         buffers[n_buffers].length = buf.length;  /* 각 버퍼의 길이를 저장 (버퍼의 크기) */
-        buffers[n_buffers].start = mmap(NULL, buf.length, PROT_READ | PROT_WRITE, 
+        buffers[n_buffers].start = mmap(NULL, buf.length, PROT_READ | PROT_WRITE,
                                         MAP_SHARED, fd, buf.m.offset);  /* 메모리 매핑 수행 */
         if (MAP_FAILED == buffers[n_buffers].start)
             mesg_exit("mmap");  /* 메모리 맵핑이 실패하면 오류 처리 */
@@ -279,32 +279,32 @@ static void init_device(int fd)
 
 
     /* 비디오 입력 및 크롭 설정 */
-    memset(&cropcap, 0, sizeof(cropcap));  /* cropcap 구조체의 모든 필드를 0으로 초기화 */
-    cropcap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;  /* 크롭 설정을 위한 버퍼 타입을 비디오 캡처로 설정 */
-        if (0 == xioctl(fd, VIDIOC_CROPCAP, &cropcap)) {  /* VIDIOC_CROPCAP: 장치의 크롭 기능 지원 여부 확인 */
-        crop.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;      /* 크롭 버퍼 타입을 비디오 캡처로 설정 */
-        crop.c = cropcap.defrect;  /* 기본 크롭 영역을 장치의 기본값으로 설정 (defrect는 장치의 기본 크롭 영역) */
-        xioctl(fd, VIDIOC_S_CROP, &crop);  /* VIDIOC_S_CROP: 크롭 영역을 설정 (드라이버에 따라 지원되지 않을 수 있음) */
-    }
+memset(&cropcap, 0, sizeof(cropcap));  /* cropcap 구조체의 모든 필드를 0으로 초기화 */
+cropcap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;  /* 크롭 설정을 위한 버퍼 타입을 비디오 캡처로 설정 */
+if (0 == xioctl(fd, VIDIOC_CROPCAP, &cropcap)) {  /* VIDIOC_CROPCAP: 장치의 크롭 기능 지원 여부 확인 */
+    crop.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;      /* 크롭 버퍼 타입을 비디오 캡처로 설정 */
+    crop.c = cropcap.defrect;  /* 기본 크롭 영역을 장치의 기본값으로 설정 (defrect는 장치의 기본 크롭 영역) */
+    xioctl(fd, VIDIOC_S_CROP, &crop);  /* VIDIOC_S_CROP: 크롭 영역을 설정 (드라이버에 따라 지원되지 않을 수 있음) */
+}
 
-    /* 비디오 포맷 설정 */
-    memset(&fmt, 0, sizeof(fmt));  /* fmt 구조체의 모든 필드를 0으로 초기화 */
-    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;  /* 포맷 설정을 위한 버퍼 타입을 비디오 캡처로 설정 */
-    fmt.fmt.pix.width = WIDTH;  /* 캡처할 이미지의 너비 설정 (정의된 WIDTH 값 사용) */
-    fmt.fmt.pix.height = HEIGHT;  /* 캡처할 이미지의 높이 설정 (정의된 HEIGHT 값 사용) */
-    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;  /* 픽셀 포맷을 YUYV(YUV422)로 설정 (2바이트당 2개의 픽셀) */
-    fmt.fmt.pix.field = V4L2_FIELD_NONE;  /* 필드 타입을 설정 (V4L2_FIELD_NONE: 인터레이스 필드 없음, 즉 프로그레시브 스캔) */
-    if (-1 == xioctl(fd, VIDIOC_S_FMT, &fmt))  /* VIDIOC_S_FMT: 지정한 포맷으로 비디오 장치 설정 */
-        mesg_exit("VIDIOC_S_FMT");  /* 포맷 설정 실패 시 오류 처리 */
+/* 비디오 포맷 설정 */
+memset(&fmt, 0, sizeof(fmt));  /* fmt 구조체의 모든 필드를 0으로 초기화 */
+fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;  /* 포맷 설정을 위한 버퍼 타입을 비디오 캡처로 설정 */
+fmt.fmt.pix.width = WIDTH;  /* 캡처할 이미지의 너비 설정 (정의된 WIDTH 값 사용) */
+fmt.fmt.pix.height = HEIGHT;  /* 캡처할 이미지의 높이 설정 (정의된 HEIGHT 값 사용) */
+fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;  /* 픽셀 포맷을 YUYV(YUV422)로 설정 (2바이트당 2개의 픽셀) */
+fmt.fmt.pix.field = V4L2_FIELD_NONE;  /* 필드 타입을 설정 (V4L2_FIELD_NONE: 인터레이스 필드 없음, 즉 프로그레시브 스캔) */
+if (-1 == xioctl(fd, VIDIOC_S_FMT, &fmt))  /* VIDIOC_S_FMT: 지정한 포맷으로 비디오 장치 설정 */
+    mesg_exit("VIDIOC_S_FMT");  /* 포맷 설정 실패 시 오류 처리 */
 
-    /* 드라이버의 버그 방지 */
-    min = fmt.fmt.pix.width * 2;  /* 최소 바이트 라인 너비 계산 (YUYV 포맷의 경우 한 픽셀당 2바이트 사용) */
-    if (fmt.fmt.pix.bytesperline < min)  /* 드라이버가 설정한 바이트 라인이 계산된 최소값보다 작다면 */
-        fmt.fmt.pix.bytesperline = min;  /* 드라이버 버그를 방지하기 위해 바이트 라인 크기를 최소값으로 설정 */
+/* 드라이버의 버그 방지 */
+min = fmt.fmt.pix.width * 2;  /* 최소 바이트 라인 너비 계산 (YUYV 포맷의 경우 한 픽셀당 2바이트 사용) */
+if (fmt.fmt.pix.bytesperline < min)  /* 드라이버가 설정한 바이트 라인이 계산된 최소값보다 작다면 */
+    fmt.fmt.pix.bytesperline = min;  /* 드라이버 버그를 방지하기 위해 바이트 라인 크기를 최소값으로 설정 */
 
-    min = fmt.fmt.pix.bytesperline * fmt.fmt.pix.height;  /* 이미지 전체 크기를 계산 (바이트 라인 * 이미지 높이) */
-    if (fmt.fmt.pix.sizeimage < min)  /* 드라이버가 설정한 이미지 크기가 최소값보다 작다면 */
-        fmt.fmt.pix.sizeimage = min;  /* 버그를 방지하기 위해 이미지 크기를 최소값으로 설정 */
+min = fmt.fmt.pix.bytesperline * fmt.fmt.pix.height;  /* 이미지 전체 크기를 계산 (바이트 라인 * 이미지 높이) */
+if (fmt.fmt.pix.sizeimage < min)  /* 드라이버가 설정한 이미지 크기가 최소값보다 작다면 */
+    fmt.fmt.pix.sizeimage = min;  /* 버그를 방지하기 위해 이미지 크기를 최소값으로 설정 */
 
 
     /* 메모리 맵핑 초기화 */

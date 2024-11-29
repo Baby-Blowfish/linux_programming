@@ -1,0 +1,1 @@
+/usr/bin/c++     CMakeFiles/app.dir/src/main.cpp.o CMakeFiles/app.dir/src/FrameBuffer.cpp.o CMakeFiles/app.dir/src/Camera.cpp.o  -o app  -lpthread 
