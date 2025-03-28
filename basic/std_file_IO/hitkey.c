@@ -1,55 +1,44 @@
 #include <stdio.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <termios.h>
+#include <unistd.h>     // read, usleep
+#include <termios.h>    // struct termios, tcgetattr, tcsetattr
+#include <fcntl.h>      // fcntl, O_NONBLOCK
 
-int kbhit(void)
-{
-        struct termios oldt, newt;
-        int ch, oldf;
-
-        tcgetattr(0,&oldt);
-        newt = oldt;
-        newt.c_lflag &= ~(ICANON | ECHO);
-        tcsetattr(0,TCSANOW, &newt);
-        oldf = fcntl(0,F_GETFL, 0);
-        fcntl(0, F_SETFL, oldf | O_NONBLOCK);
-        ch = getchar();
-
-        tcsetattr(0, TCSANOW, &oldt);
-        fcntl(0, F_SETFL, oldf);
-
-        if(ch != EOF)
-        {
-            ungetc(ch, stdin);
-            return 1;
-        }
-
-        return 0;
-}
-
-
-int main(int argc, char **argv)
-{
+int main() {
+    struct termios oldt, newt;
     int i = 0;
+    char c;
 
-    for( i = 0; ; i++)
-    {
-        if(kbhiht())
-        {
-            switch(getchar())
-            {
-                case'q':
-                    goto END;
-                    break;
-            };
+    // 1. 현재 터미널 설정 백업
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+
+    // 2. 비표준 모드 (ICANON 해제), 에코 해제
+    newt.c_lflag &= ~(ICANON | ECHO);
+
+    // 3. 터미널 설정 적용
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+    // 4. stdin을 논블로킹으로 설정
+    fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL) | O_NONBLOCK);
+
+    // 5. 메인 루프
+    while (1) {
+        // 실시간 키 입력 감지
+        if (read(STDIN_FILENO, &c, 1) == 1) {
+            if (c == 'q') break;
+            printf("\n입력한 키: %c\n", c);
         }
-        printf("%20d\t\t\r', i);
-        usleep(100);
+
+        // 한 줄 덮어쓰기 출력
+        printf("\rCount: %d", i++);
+        fflush(stdout);
+
+        usleep(100000); // 0.1초
     }
 
-END:
-    printf("Good  Bye!\n");
+    // 6. 터미널 원상복구
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    printf("\nGood Bye!\n");
     return 0;
-
 }
+
