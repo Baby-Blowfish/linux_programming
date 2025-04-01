@@ -1,0 +1,13 @@
+ls -al  /dev/fb0
+crw-rw---- 1 root video 29, 0  3월 31 07:56 /dev/fb0
+
+cat /proc/fb
+0 amdgpudrmfb
+Resolution : 1920x1080, 32bpp
+Virtual Resolution : 1920x1080
+Length of frame buffer memory : 8294400
+Red: offset = 16, length = 8
+Green: offset = 8, length = 8
+Blue: offset = 0, length = 8
+Alpha (transparency): offset = 0, length = 0
+New Resolution : 1920x1080, 32bpp

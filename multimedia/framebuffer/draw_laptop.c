@@ -193,15 +193,15 @@ int main(int argc, char **argv)
 		printf("Alpha (transparency): offset = %d, length = %d\n", vinfo.transp.offset, vinfo.transp.length);
 
 	// 테스트를 위한 다양한 도형 그리기
-	//drawface(fdfd, 0, 0, 0, 0, 255, 255, 0);  // 화면 전체를 노란색으로 채움
-	//drawcircle(fdfd, 200, 200, 100, 255, 0, 255);  // 자홍색 원 그리기
-	//drawline(fdfd, 0, 100, 200, 0, 255, 255);  // 청록색 선 그리기
+	drawface(fdfd, 0, 0, 0, 0, 255, 255, 0);  // 화면 전체를 노란색으로 채움
+	drawcircle(fdfd, 200, 200, 100, 255, 0, 255);  // 자홍색 원 그리기
+	drawline(fdfd, 0, 100, 200, 0, 255, 255);  // 청록색 선 그리기
 
 
 	// 화면 채우기
-	drawfacemmap(fdfd, 0, 0, 0, 0, 255, 255, 0);
-	drawcircle(fdfd, 200, 200, 100, 255, 0, 255);  // 자홍색 원 그리기
-	
+	//drawfacemmap(fdfd, 0, 0, 0, 0, 255, 255, 0);
+	//drawcircle(fdfd, 200, 200, 100, 255, 0, 255);  // 자홍색 원 그리기
+
 	// 프레임 버퍼 장치 닫기
 	close(fdfd);
 
