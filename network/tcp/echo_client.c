@@ -10,7 +10,8 @@ int main(int argc, char**argv)
 {
     int ssock, n;
     struct sockaddr_in servaddr;
-    char mesg[BUFSIZ];
+    char send_buf[BUFSIZ];
+    char recv_buf[BUFSIZ];
 
     // 1. IP 주소 인자 확인
     if(argc<2)
@@ -39,26 +40,20 @@ int main(int argc, char**argv)
         return -1;
     }
 
-    // 5. 사용자 입력
-    printf("[클라이언트] 서버에 보낼 메시지를 입력하세요: ");
-    fgets(mesg, BUFSIZ, stdin);
+    while (1) {
+        printf("[클라이언트] 메시지 입력 (q 입력 시 종료): ");
+        fgets(send_buf, BUFSIZ, stdin);
 
-    // 6. 서버에 메시지 전송
-    if(send(ssock, mesg, BUFSIZ, MSG_DONTWAIT) <= 0)  // 논블로킹 전송
-    {
-        perror("send() :");
-        return -1;
-    }
+        send(ssock, send_buf, strlen(send_buf), 0);
 
-    // 송신 종료 알림
-    shutdown(ssock, SHUT_WR);
+        if (strncmp(send_buf, "q", 1) == 0)
+            break;
 
-    // 7. 서버로부터 에코 메시지 수신
-    memset(mesg, 0, BUFSIZ);
-    while((n = recv(ssock, mesg, BUFSIZ, 0)) > 0)
-    {
-        mesg[n] = '\0';
-        printf("서버 응답: %s", mesg);
+        int n = recv(ssock, recv_buf, BUFSIZ - 1, 0);
+        if (n <= 0) break;
+
+        recv_buf[n] = '\0';
+        printf("[클라이언트] 서버 응답: %s", recv_buf);
     }
 
 
