@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>데몬 웹 서버 테스트</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      line-height: 1.6;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      color: #333;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .info-box {
+      background-color: #e9f7fe;
+      border-left: 4px solid #2196F3;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+
+    .success-message {
+      color: #4CAF50;
+      font-weight: bold;
+    }
+
+    .server-info {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #eee;
+    }
+
+    .server-info p {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>데몬 웹 서버 테스트 페이지</h1>
+
+    <div class="info-box">
+      <p class="success-message">✅ 서버 연결 성공!</p>
+      <p>이 페이지는 데몬 웹 서버에서 제공되는 테스트 페이지입니다.</p>
+    </div>
+
+    <h2>서버 정보</h2>
+    <div class="server-info">
+      <p><strong>서버 이름:</strong> DaemonServer/1.0</p>
+      <p><strong>프로토콜:</strong> HTTP/1.1</p>
+      <p><strong>접속 시간:</strong> <span id="current-time"></span></p>
+    </div>
+
+    <h2>테스트 기능</h2>
+    <ul>
+      <li>정적 파일 서빙 테스트</li>
+      <li>HTTP 응답 헤더 확인</li>
+      <li>접속 로그 기록 확인</li>
+    </ul>
+  </div>
+
+  <script>
+    // 현재 시간 표시
+    function updateTime() {
+      const now = new Date();
+      document.getElementById('current-time').textContent =
+        now.toLocaleString('ko-KR', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+    }
+
+    updateTime();
+    setInterval(updateTime, 1000);
+  </script>
+</body>
+
+</html>
