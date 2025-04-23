@@ -1,0 +1,1 @@
+cmd_/home/hyojin/src/linux_programming/kernel_devicedriver/01_hello_driver/Module.symvers := sed 's/\.ko$$/\.o/' /home/hyojin/src/linux_programming/kernel_devicedriver/01_hello_driver/modules.order | scripts/mod/modpost -m -a  -o /home/hyojin/src/linux_programming/kernel_devicedriver/01_hello_driver/Module.symvers -e -i Module.symvers   -T -

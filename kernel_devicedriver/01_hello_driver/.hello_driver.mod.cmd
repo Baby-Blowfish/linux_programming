@@ -1,0 +1,1 @@
+cmd_/home/hyojin/src/linux_programming/kernel_devicedriver/01_hello_driver/hello_driver.mod := { echo  /home/hyojin/src/linux_programming/kernel_devicedriver/01_hello_driver/hello_driver.o;  echo; } > /home/hyojin/src/linux_programming/kernel_devicedriver/01_hello_driver/hello_driver.mod

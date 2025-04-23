@@ -1,7 +1,0 @@
-{
-  "ros.distro": "noetic",
-  "files.associations": {
-    "random": "c",
-    "tuple": "c"
-  }
-}
