@@ -182,6 +182,12 @@ int main(int argc, char **argv)
         return -1;
     }
 
+	vinfo.xres_virtual = vinfo.xres;
+	vinfo.yres_virtual = vinfo.yres;
+
+	if(ioctl(fdfd, FBIOPUT_VSCREENINFO, &(vinfo)) < 0)
+		return 1;
+
     // 현재 프레임 버퍼의 해상도 및 색상 깊이 정보 출력
     printf("Resolution : %dx%d, %dbpp\n", vinfo.xres, vinfo.yres, vinfo.bits_per_pixel);
     printf("Virtual Resolution : %dx%d\n", vinfo.xres_virtual, vinfo.yres_virtual);

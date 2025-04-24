@@ -139,6 +139,15 @@ int main(int argc, char**argv)
 		perror("Error reading fixed information");
 		return -1;
 	}
+
+	vinfo.xres_virtual = vinfo.xres;
+	vinfo.yres_virtual = vinfo.yres;
+
+	if(ioctl(fdfd, FBIOPUT_VSCREENINFO, &(vinfo)) < 0)
+		return 1;
+
+
+
 //	drawpoint(fdfd,50,50,255,0,0);
 //	drawpoint(fdfd,100,100,0,255,0);
 //	drawpoint(fdfd,150,150,0,0,255);
@@ -152,8 +161,8 @@ int main(int argc, char**argv)
 //	drawfacemmap(fdfd, 0, 0, 0, 0, 255,  , 0);
 //	drawfacemmap(fdfd, 0, 0, 0, 0, 0, 255 , 0);
 	drawfacemmap(fdfd, 0, 0, 533, 0, 0,0, 255); //blue
-	drawfacemmap(fdfd, 534, 0, 1066, 0, 255,255, 255); //white
-	drawfacemmap(fdfd,1066, 0, 0, 0, 255,0, 0); //red
+	drawfacemmap(fdfd, 534, 0, 700, 0, 255,255, 255); //white
+	drawfacemmap(fdfd, 700, 0, 0, 0, 255,0, 0); //red
 //	drawflag(fdfd);
 
 	close(fdfd);
